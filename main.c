@@ -13,6 +13,7 @@ void timing_delay_decrement(void);
 void delay_ms(uint32_t t);
 void init_UART4();
 void init_LED();
+void init_accel();
 void init_blue_push_button();
 uint32_t get_ticks();
 
@@ -36,16 +37,11 @@ int main(void)
     init_LED();
     init_blue_push_button();
     init_UART4();
+    init_accel();
     
     my_printf("Begin ...\r\n");
 
-	TM_I2C_Init(I2C1, TM_I2C_PinsPack_1, 100000);
-
-	uint8_t data = TM_I2C_Read(I2C1, 0x1D, 0x3D);
-	my_printf("Test %i", (uint32_t) data);
-
     while(1) {
-		my_printf("Test\r\n");
 		delay_ms(1000);
     }
 }
@@ -122,6 +118,20 @@ void init_UART4()
 
     /* Enable USART */
     USART_Cmd(UART4, ENABLE);
+}
+
+void init_accel(void) {
+	TM_I2C_Init(I2C1, TM_I2C_PinsPack_1, 100000);
+	
+	if(!TM_I2C_IsDeviceConnected(I2C1, 0x1D)) {
+		my_printf("Failed to find i2c device\r\n");
+		return;
+	}
+
+	my_printf("Found i2c device");
+
+	uint8_t data = TM_I2C_Read(I2C1, 0x1D, 0xF);
+	my_printf("Test value=%u\r\n", (uint32_t) data);
 }
 
 void delay_ms(uint32_t t)
