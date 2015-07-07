@@ -4,7 +4,7 @@ STLINK=../../../stlink
 SRCS=main.c system_stm32f4xx.c stm32f4xx_it.c newlib_stubs.c my_printf.c
 
 # Library modules
-SRCS += stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_dma.c stm32f4xx_sdio.c stm32f4xx_syscfg.c stm32f4xx_exti.c misc.c stm32f4xx_i2c.c stm32f4xx_spi.c
+SRCS += stm32f4xx_gpio.c stm32f4xx_rcc.c stm32f4xx_usart.c stm32f4xx_dma.c stm32f4xx_sdio.c stm32f4xx_syscfg.c stm32f4xx_exti.c misc.c stm32f4xx_i2c.c stm32f4xx_spi.c lsm9ds0.h
 
 # Discovery specific
 SRCS += $(STM_COMMON)/Utilities/STM32F4-Discovery/stm32f4_discovery.c
@@ -24,7 +24,7 @@ STM_COMMON=../../..
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 
-CFLAGS  = -std=c99 -O3 -Wall -Tstm32_flash.ld -DHSE_VALUE=8000000 -g -pedantic
+CFLAGS  = -std=c99 -O3 -Wall -Tstm32_flash.ld -DHSE_VALUE=8000000 -g
 CFLAGS += -DUSE_STDPERIPH_DRIVER
 CFLAGS += -mlittle-endian -mthumb-interwork
 CFLAGS += -mthumb -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16
