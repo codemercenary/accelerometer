@@ -1,7 +1,10 @@
 #include "stm32f4xx_conf.h"
 #include "stm32f4xx.h"
 #include "stm32f4_discovery.h"
+#include "tm_stm32f4_gpio.h"
+#include "tm_stm32f4_i2c.h"
 #include "my_printf.h"
+#include "lsm9ds0.h"
 
 __IO uint32_t g_timing_delay;
 __IO uint32_t g_ticks = 0; // increments every millisecond
@@ -33,18 +36,23 @@ int main(void)
     init_LED();
     init_blue_push_button();
     init_UART4();
-
+    
     my_printf("Begin ...\r\n");
 
+	TM_I2C_Init(I2C1, TM_I2C_PinsPack_1, 100000);
+
+	uint8_t data = TM_I2C_Read(I2C1, 0x1D, 0x3D);
+	my_printf("Test %i", (uint32_t) data);
+
     while(1) {
-        // Light up the LEDS when the user presses the blue button
-        if (GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0)) {
-    		GPIO_SetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15);
-    	} 
-        else {
-    		GPIO_ResetBits(GPIOD, GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15);
-    	}
+		my_printf("Test\r\n");
+		delay_ms(1000);
     }
+}
+
+void EXTI0_IRQHandler(void)
+{
+	GPIO_SetBits(GPIOD, GPIO_Pin_12);
 }
 
 void init_LED()
