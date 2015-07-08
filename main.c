@@ -39,16 +39,16 @@ int main(void)
     init_UART4();
     init_accel();
     
-    my_printf("Begin ...\r\n");
+    my_printf("Begin ... \r\n");
 
     while(1) {
 		delay_ms(1000);
 		
 		lsm_ddx ddx = lsm_read_ddx();
-		my_printf("ddx = (%u, %u, %u)\r\n", ddx.ddx, ddx.ddy, ddx.ddz);
+		my_printf("ddx = (%d, %d, %d)\r\n", ddx.ddx, ddx.ddy, ddx.ddz);
 		
 		lsm_deuler deuler = lsm_read_deuler();
-		my_printf("dx = (%u, %u, %u)\r\n", deuler.dx, deuler.dy, deuler.dz);
+		my_printf("dx = (%d, %d, %d)\r\n", deuler.dx, deuler.dy, deuler.dz);
     }
 }
 
