@@ -14,6 +14,7 @@ void delay_ms(uint32_t t);
 void init_UART4();
 void init_LED();
 void init_accel();
+void init_cs();
 void init_blue_push_button();
 uint32_t get_ticks();
 
@@ -38,11 +39,12 @@ int main(void)
     init_blue_push_button();
     init_UART4();
     init_accel();
+    init_cs();
     
     my_printf("Begin ...\r\n");
 
     while(1) {
-		delay_ms(1000);
+		delay_ms(1);
     }
 }
 
@@ -123,15 +125,34 @@ void init_UART4()
 void init_accel(void) {
 	TM_I2C_Init(I2C1, TM_I2C_PinsPack_1, 100000);
 	
-	if(!TM_I2C_IsDeviceConnected(I2C1, 0x1D)) {
-		my_printf("Failed to find i2c device\r\n");
+	if(
+		!TM_I2C_IsDeviceConnected(I2C1, (uint8_t)0x3A) ||
+		!TM_I2C_IsDeviceConnected(I2C1, (uint8_t)0x3B)
+	) {
+		my_printf("i2c device missing\r\n");
 		return;
 	}
 
-	my_printf("Found i2c device");
-
-	uint8_t data = TM_I2C_Read(I2C1, 0x1D, 0xF);
+	TM_I2C_Write(I2C1, 0x3A, 0x20, 102);
+	uint8_t data = TM_I2C_Read(I2C1, 0x3B, 0x20);
 	my_printf("Test value=%u\r\n", (uint32_t) data);
+}
+
+void init_cs() {
+	GPIO_InitTypeDef gpio; // Chip select lines for the accelerometer
+
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+
+    gpio.GPIO_Pin   = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |  GPIO_Pin_4;
+	gpio.GPIO_Mode  = GPIO_Mode_OUT;
+	gpio.GPIO_OType = GPIO_OType_PP;
+	gpio.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+	gpio.GPIO_Speed = GPIO_Speed_100MHz;
+
+	GPIO_Init(GPIOD, &gpio);
+	
+	// Pull all pins high
+	GPIO_SetBits(GPIOD, gpio.GPIO_Pin);
 }
 
 void delay_ms(uint32_t t)
