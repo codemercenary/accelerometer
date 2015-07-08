@@ -24,6 +24,16 @@ enum {
 	CTRL_REG2_XM = 0x21,
 	CTRL_REG3_XM = 0x22,
 	CTRL_REG4_XM = 0x23,
+	CTRL_REG5_XM = 0x24,
+	CTRL_REG6_XM = 0x25,
+	CTRL_REG7_XM = 0x26,
+	
+	OFFSET_X_L_M = 0x16,
+	OFFSET_X_H_M = 0x17,
+	OFFSET_Y_L_M = 0x18,
+	OFFSET_Y_H_M = 0x19,
+	OFFSET_Z_L_M = 0x1A,
+	OFFSET_Z_H_M = 0x1B,
 	
 	OUT_X_L_A = 0x28,
 	OUT_X_H_A = 0x29,
@@ -79,6 +89,28 @@ typedef struct _CTRL_REG4_XM_VALUE {
 	unsigned char p2_overrun : 1;
 	unsigned char p2_wtm : 1;
 } CTRL_REG4_XM_VALUE;
+
+typedef struct _CTRL_REG5_XM_VALUE {
+	unsigned char temp_en : 1;
+	unsigned char m_res : 2;
+	unsigned char m_odr : 3;
+	unsigned char lir2 : 1;
+	unsigned char lir1 : 1;
+} CTRL_REG5_XM_VALUE;
+
+typedef struct _CTRL_REG6_XM_VALUE {
+	unsigned char : 1;
+	unsigned char mfs : 2;
+	unsigned char : 5;
+} CTRL_REG6_XM_VALUE;
+
+typedef struct _CTRL_REG7_XM_VALUE {
+	unsigned char md : 2;
+	unsigned char mlp : 1;
+	unsigned char : 2;
+	unsigned char afds : 1;
+	unsigned char ahpm : 2;
+} CTRL_REG7_XM_VALUE;
 
 enum {
 	CTRL_REG1_G = 0x20,
@@ -158,6 +190,29 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		TM_I2C_Write(g_config.i2c, i2c_addr_am, CTRL_REG2_XM, *(uint8_t*)&reg2);
 	}
 	
+	// Configure magnetometer:
+	{
+		CTRL_REG5_XM_VALUE reg5;
+		reg5.temp_en  = 0;
+		reg5.m_res = g_config.mRes;
+		reg5.m_odr = g_config.mODR;
+		reg5.lir2 = 0;
+		reg5.lir1 = 0;
+		//TM_I2C_Write(g_config.i2c, i2c_addr_am, CTRL_REG5_XM, *(uint8_t*)&reg5);
+		TM_I2C_Write(g_config.i2c, i2c_addr_am, CTRL_REG5_XM, *(uint8_t*)&reg5);
+		
+		CTRL_REG6_XM_VALUE reg6 = {};
+		reg6.mfs = g_config.mFSR;
+		TM_I2C_Write(g_config.i2c, i2c_addr_am, CTRL_REG6_XM, *(uint8_t*)&reg6);
+		
+		CTRL_REG7_XM_VALUE reg7 = {};
+		reg7.ahpm = g_config.ahpm;
+		reg7.afds = 0;
+		reg7.mlp = 0;
+		reg7.md = 0;
+		TM_I2C_Write(g_config.i2c, i2c_addr_am, CTRL_REG7_XM, *(uint8_t*)&reg7);
+	}
+	
 	// Configure gyro:
 	{
 		CTRL_REG1_G_VALUE reg1;
@@ -203,6 +258,21 @@ lsm_deuler lsm_read_deuler(void) {
 		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Z_L_G) |
 		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Z_H_G) << 8);
 	return deuler;
+}
+
+lsm_v lsm_read_compass(void) {
+	lsm_v v = {};
+	
+	v.x =
+		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_M) |
+		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_M) << 8);
+	v.y =
+		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Y_L_M) |
+		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Y_H_M) << 8);
+	v.z =
+		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Z_L_M) |
+		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Z_H_M) << 8);
+	return v;
 }
 
 int lsm_handle_interrupt(void) {

@@ -55,6 +55,36 @@ typedef enum _eHPFM {
 	eHPFM_AutoReset = 3
 } eHPFM;
 
+typedef enum _eMResolution {
+	eMResolutionLow = 0,
+	eMResolutionHigh = 3
+} eMResolution;
+
+typedef enum _eMDataRate {
+	eMDataRate_3_125Hz,
+	eMDataRate_6_25Hz,
+	eMDataRate_12_5Hz,
+	eMDataRate_25Hz,
+	eMDataRate_50Hz,
+	eMDataRate_100Hz,
+	eMDataRate_Reserved0,
+	eMDataRate_Reserved1
+} eMDataRate;
+
+typedef enum _eMFSR {
+	eMFSR2Gauss,
+	eMFSR4Gauss,
+	eMFSR8Gauss,
+	eMFSR12Gauss
+} eMFSR;
+
+typedef enum _eMHPFMS {
+	eMHPFMSNormalReset,
+	eMHPFMSReference,
+	eMHPFMSNormal,
+	eMHPFMSAutoReset
+} eMHPFMS;
+
 typedef struct LSM9DS0_CONFIG {
 	// Interrupt block and lines.
 	GPIO_TypeDef* GPIO_int;
@@ -84,6 +114,12 @@ typedef struct LSM9DS0_CONFIG {
 	eHPFM hpm;
 	uint8_t hpcf; // Cutoff frequency, table 26
 	
+	// Magnetometer traits:
+	eMResolution mRes;
+	eMDataRate mODR;
+	eMFSR mFSR;
+	eMHPFMS ahpm;
+	
 } LSM9DS0_CONFIG;
 
 // @summary Initializes behavior based on the specified GPIO interrupt
@@ -105,6 +141,13 @@ typedef struct _lsm_deuler {
 	int16_t dz;
 } lsm_deuler;
 lsm_deuler lsm_read_deuler(void);
+
+typedef struct _lsm_v {
+	int16_t x;
+	int16_t y;
+	int16_t z;
+} lsm_v;
+lsm_v lsm_read_compass(void);
 
 // @summary Callback to be invoked when the line interrupt has been asserted
 // @returns Nonzero to indicate that an interrupt was processed

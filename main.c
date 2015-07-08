@@ -44,11 +44,14 @@ int main(void)
     while(1) {
 		delay_ms(1000);
 		
-		lsm_ddx ddx = lsm_read_ddx();
-		my_printf("ddx = (%d, %d, %d)\r\n", ddx.ddx, ddx.ddy, ddx.ddz);
+		lsm_ddx ddv = lsm_read_ddx();
+		my_printf("ddv = (%d, %d, %d)\r\n", ddv.ddx, ddv.ddy, ddv.ddz);
+		
+		lsm_v north = lsm_read_compass();
+		my_printf("v = (%d, %d, %d)\r\n", north.x, north.y, north.z);
 		
 		lsm_deuler deuler = lsm_read_deuler();
-		my_printf("dx = (%d, %d, %d)\r\n", deuler.dx, deuler.dy, deuler.dz);
+		my_printf("dv = (%d, %d, %d)\r\n", deuler.dx, deuler.dy, deuler.dz);
     }
 }
 
@@ -149,6 +152,11 @@ void init_accel(void) {
 	config.dr_bw = eGDRBW_760_100;
 	config.hpm = eHPFM_Normal;
 	config.hpcf = 5;		// Corresponds to 1.8Hz
+	
+	config.mRes = eMResolutionLow;
+	config.mODR = eMDataRate_3_125Hz;
+	config.mFSR = eMFSR4Gauss;
+	config.ahpm = eMHPFMSNormal;
 	
 	lsm_init(&config);
 }
