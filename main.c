@@ -2,7 +2,6 @@
 #include "stm32f4xx.h"
 #include "stm32f4_discovery.h"
 #include "tm_stm32f4_gpio.h"
-#include "tm_stm32f4_i2c.h"
 #include "my_printf.h"
 #include "lsm9ds0.h"
 
@@ -39,12 +38,17 @@ int main(void)
     init_blue_push_button();
     init_UART4();
     init_accel();
-    init_cs();
     
     my_printf("Begin ...\r\n");
 
     while(1) {
-		delay_ms(1);
+		delay_ms(1000);
+		
+		lsm_ddx ddx = lsm_read_ddx();
+		my_printf("ddx = (%u, %u, %u)\r\n", ddx.ddx, ddx.ddy, ddx.ddz);
+		
+		lsm_deuler deuler = lsm_read_deuler();
+		my_printf("dx = (%u, %u, %u)\r\n", deuler.dx, deuler.dy, deuler.dz);
     }
 }
 
@@ -105,7 +109,7 @@ void init_UART4()
     GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_UART4);
 
     /* Connect PXx to USARTx_Rx*/
-    GPIO_PinAFConfig( GPIOC, GPIO_PinSource11, GPIO_AF_UART4);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_UART4);
  
     /* Configure USART Tx as alternate function  */
     gpio.GPIO_OType = GPIO_OType_PP;
@@ -123,36 +127,30 @@ void init_UART4()
 }
 
 void init_accel(void) {
-	TM_I2C_Init(I2C1, TM_I2C_PinsPack_1, 100000);
+	LSM9DS0_CONFIG config;
+	config.GPIO_int = GPIOA;
+	config.INTG = GPIO_Pin_3;
+	config.DRDYG = GPIO_Pin_1;
+	config.INT1_XM = GPIO_Pin_2;
+	config.INT2_XM = GPIO_Pin_0;
 	
-	if(
-		!TM_I2C_IsDeviceConnected(I2C1, (uint8_t)0x3A) ||
-		!TM_I2C_IsDeviceConnected(I2C1, (uint8_t)0x3B)
-	) {
-		my_printf("i2c device missing\r\n");
-		return;
-	}
-
-	TM_I2C_Write(I2C1, 0x3A, 0x20, 102);
-	uint8_t data = TM_I2C_Read(I2C1, 0x3B, 0x20);
-	my_printf("Test value=%u\r\n", (uint32_t) data);
-}
-
-void init_cs() {
-	GPIO_InitTypeDef gpio; // Chip select lines for the accelerometer
-
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
-
-    gpio.GPIO_Pin   = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 |  GPIO_Pin_4;
-	gpio.GPIO_Mode  = GPIO_Mode_OUT;
-	gpio.GPIO_OType = GPIO_OType_PP;
-	gpio.GPIO_PuPd  = GPIO_PuPd_NOPULL;
-	gpio.GPIO_Speed = GPIO_Speed_100MHz;
-
-	GPIO_Init(GPIOD, &gpio);
+	config.GPIO_en = GPIOD;
+	config.CS_G = GPIO_Pin_2;
+	config.CS_XM = GPIO_Pin_4;
+	config.SDOG = GPIO_Pin_3;
+	config.SDOXM = GPIO_Pin_1;
+	config.DEN_G = GPIO_Pin_0;
 	
-	// Pull all pins high
-	GPIO_SetBits(GPIOD, gpio.GPIO_Pin);
+	config.i2c = I2C1;
+	config.gRate = eRate_200_Hz;
+	config.lAAFilterBW = eAAFilterBW_773Hz;
+	config.lMaxScale = eMaxScale_16g;
+	
+	config.dr_bw = eGDRBW_760_100;
+	config.hpm = eHPFM_Normal;
+	config.hpcf = 5;		// Corresponds to 1.8Hz
+	
+	lsm_init(&config);
 }
 
 void delay_ms(uint32_t t)
