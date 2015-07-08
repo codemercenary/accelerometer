@@ -44,72 +44,74 @@ enum {
 };
 
 typedef struct _CTRL_REG0_XM_VALUE {
-	unsigned char boot : 1;
-	unsigned char fifo_en : 1;
-	unsigned char wtm_en : 1;
-	unsigned char : 2;
-	unsigned char hp_click : 1;
-	unsigned char hpis1 : 1;
+	
 	unsigned char hpis2 : 1;
+	unsigned char hpis1 : 1;
+	unsigned char hp_click : 1;
+	unsigned char : 2;
+	unsigned char wtm_en : 1;
+	unsigned char fifo_en : 1;
+	unsigned char boot : 1;
 } CTRL_REG0_XM_VALUE;
 
 typedef struct _CTRL_REG1_XM_VALUE {
-	unsigned char rate : 4;
-	unsigned char bdu : 1;
-	unsigned char azen : 1;
-	unsigned char ayen : 1;
 	unsigned char axen : 1;
+	unsigned char ayen : 1;
+	unsigned char azen : 1;
+	unsigned char bdu : 1;
+	unsigned char rate : 4;
 } CTRL_REG1_XM_VALUE;
 
 typedef struct _CTRL_REG2_XM_VALUE {
-	unsigned char abw : 2;
-	unsigned char afs : 3;
-	unsigned char ast : 2;
 	unsigned char sim : 1;
+	unsigned char ast : 2;
+	unsigned char afs : 3;
+	unsigned char abw : 2;
 } CTRL_REG2_XM_VALUE;
 
 typedef struct _CTRL_REG3_XM_VALUE {
-	unsigned char p1_boot : 1;
-	unsigned char p1_tap : 1;
-	unsigned char p1_int1 : 1;
-	unsigned char p1_int2 : 1;
-	unsigned char p1_intm : 1;
-	unsigned char p1_drdyA : 1;
-	unsigned char p1_drdyM : 1;
 	unsigned char p1_empty : 1;
+	unsigned char p1_drdyM : 1;
+	unsigned char p1_drdyA : 1;
+	unsigned char p1_intm : 1;
+	unsigned char p1_int2 : 1;
+	unsigned char p1_int1 : 1;
+	unsigned char p1_tap : 1;
+	unsigned char p1_boot : 1;
 } CTRL_REG3_XM_VALUE;
 
 typedef struct _CTRL_REG4_XM_VALUE {
-	unsigned char p2_tap : 1;
-	unsigned char p2_int1 : 1;
-	unsigned char p2_int2 : 1;
-	unsigned char p2_intm : 1;
-	unsigned char p2_drdyA : 1;
-	unsigned char p2_drdyM : 1;
-	unsigned char p2_overrun : 1;
 	unsigned char p2_wtm : 1;
+	unsigned char p2_overrun : 1;
+	unsigned char p2_drdyM : 1;
+	unsigned char p2_drdyA : 1;
+	
+	unsigned char p2_intm : 1;
+	unsigned char p2_int2 : 1;
+	unsigned char p2_int1 : 1;
+	unsigned char p2_tap : 1;
 } CTRL_REG4_XM_VALUE;
 
 typedef struct _CTRL_REG5_XM_VALUE {
-	unsigned char temp_en : 1;
-	unsigned char m_res : 2;
-	unsigned char m_odr : 3;
-	unsigned char lir2 : 1;
 	unsigned char lir1 : 1;
+	unsigned char lir2 : 1;
+	unsigned char m_odr : 3;
+	unsigned char m_res : 2;
+	unsigned char temp_en : 1;
 } CTRL_REG5_XM_VALUE;
 
 typedef struct _CTRL_REG6_XM_VALUE {
-	unsigned char : 1;
-	unsigned char mfs : 2;
 	unsigned char : 5;
+	unsigned char mfs : 2;
+	unsigned char : 1;
 } CTRL_REG6_XM_VALUE;
 
 typedef struct _CTRL_REG7_XM_VALUE {
-	unsigned char md : 2;
-	unsigned char mlp : 1;
-	unsigned char : 2;
-	unsigned char afds : 1;
 	unsigned char ahpm : 2;
+	unsigned char afds : 1;
+	unsigned char : 2;
+	unsigned char mlp : 1;
+	unsigned char md : 2;
 } CTRL_REG7_XM_VALUE;
 
 enum {
@@ -127,17 +129,17 @@ enum {
 };
 
 typedef struct _CTRL_REG1_G_VALUE {
-	unsigned char dr_bw : 4;
-	unsigned char pd : 1;
-	unsigned char z_en : 1;
-	unsigned char y_en : 1;
 	unsigned char x_en : 1;
+	unsigned char y_en : 1;
+	unsigned char z_en : 1;
+	unsigned char pd : 1;
+	unsigned char dr_bw : 4;
 } CTRL_REG1_G_VALUE;
 
 typedef struct _CTRL_REG2_G_VALUE {
-	unsigned char : 2;
-	unsigned char hpm : 2;
 	unsigned char hpcf : 4;
+	unsigned char hpm : 2;
+	unsigned char : 2;
 } CTRL_REG2_G_VALUE;
 
 void lsm_init(const LSM9DS0_CONFIG* config) {
