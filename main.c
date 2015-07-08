@@ -42,7 +42,7 @@ int main(void)
     my_printf("Begin ... \r\n");
 
     while(1) {
-		delay_ms(1000);
+		delay_ms(2);
 		
 		lsm_ddx ddv = lsm_read_ddx();
 		my_printf("ddv = (%d, %d, %d)\r\n", ddv.ddx, ddv.ddy, ddv.ddz);
