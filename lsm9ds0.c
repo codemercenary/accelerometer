@@ -10,138 +10,6 @@ static LSM9DS0_CONFIG g_config;
 static uint32_t i2c_addr_am = 0x3A;
 static uint32_t i2c_addr_g = 0xD6;
 
-// Names of all available registers
-enum {
-	OUT_X_L_M = 0x08,
-	OUT_X_H_M = 0x09,
-	OUT_Y_L_M = 0x0A,
-	OUT_Y_H_M = 0x0B,
-	OUT_Z_L_M = 0x0C,
-	OUT_Z_H_M = 0x0D,
-	
-	CTRL_REG0_XM = 0x1F,
-	CTRL_REG1_XM = 0x20,
-	CTRL_REG2_XM = 0x21,
-	CTRL_REG3_XM = 0x22,
-	CTRL_REG4_XM = 0x23,
-	CTRL_REG5_XM = 0x24,
-	CTRL_REG6_XM = 0x25,
-	CTRL_REG7_XM = 0x26,
-	
-	OFFSET_X_L_M = 0x16,
-	OFFSET_X_H_M = 0x17,
-	OFFSET_Y_L_M = 0x18,
-	OFFSET_Y_H_M = 0x19,
-	OFFSET_Z_L_M = 0x1A,
-	OFFSET_Z_H_M = 0x1B,
-	
-	OUT_X_L_A = 0x28,
-	OUT_X_H_A = 0x29,
-	OUT_Y_L_A = 0x3A,
-	OUT_Y_H_A = 0x2B,
-	OUT_Z_L_A = 0x2C,
-	OUT_Z_H_A = 0x2D,
-};
-
-typedef struct _CTRL_REG0_XM_VALUE {
-	
-	unsigned char hpis2 : 1;
-	unsigned char hpis1 : 1;
-	unsigned char hp_click : 1;
-	unsigned char : 2;
-	unsigned char wtm_en : 1;
-	unsigned char fifo_en : 1;
-	unsigned char boot : 1;
-} CTRL_REG0_XM_VALUE;
-
-typedef struct _CTRL_REG1_XM_VALUE {
-	unsigned char axen : 1;
-	unsigned char ayen : 1;
-	unsigned char azen : 1;
-	unsigned char bdu : 1;
-	unsigned char rate : 4;
-} CTRL_REG1_XM_VALUE;
-
-typedef struct _CTRL_REG2_XM_VALUE {
-	unsigned char sim : 1;
-	unsigned char ast : 2;
-	unsigned char afs : 3;
-	unsigned char abw : 2;
-} CTRL_REG2_XM_VALUE;
-
-typedef struct _CTRL_REG3_XM_VALUE {
-	unsigned char p1_empty : 1;
-	unsigned char p1_drdyM : 1;
-	unsigned char p1_drdyA : 1;
-	unsigned char p1_intm : 1;
-	unsigned char p1_int2 : 1;
-	unsigned char p1_int1 : 1;
-	unsigned char p1_tap : 1;
-	unsigned char p1_boot : 1;
-} CTRL_REG3_XM_VALUE;
-
-typedef struct _CTRL_REG4_XM_VALUE {
-	unsigned char p2_wtm : 1;
-	unsigned char p2_overrun : 1;
-	unsigned char p2_drdyM : 1;
-	unsigned char p2_drdyA : 1;
-	
-	unsigned char p2_intm : 1;
-	unsigned char p2_int2 : 1;
-	unsigned char p2_int1 : 1;
-	unsigned char p2_tap : 1;
-} CTRL_REG4_XM_VALUE;
-
-typedef struct _CTRL_REG5_XM_VALUE {
-	unsigned char lir1 : 1;
-	unsigned char lir2 : 1;
-	unsigned char m_odr : 3;
-	unsigned char m_res : 2;
-	unsigned char temp_en : 1;
-} CTRL_REG5_XM_VALUE;
-
-typedef struct _CTRL_REG6_XM_VALUE {
-	unsigned char : 5;
-	unsigned char mfs : 2;
-	unsigned char : 1;
-} CTRL_REG6_XM_VALUE;
-
-typedef struct _CTRL_REG7_XM_VALUE {
-	unsigned char ahpm : 2;
-	unsigned char afds : 1;
-	unsigned char : 2;
-	unsigned char mlp : 1;
-	unsigned char md : 2;
-} CTRL_REG7_XM_VALUE;
-
-enum {
-	CTRL_REG1_G = 0x20,
-	CTRL_REG2_G = 0x21,
-	CTRL_REG3_G = 0x22,
-	CTRL_REG4_G = 0x23,
-	
-	OUT_X_L_G = 0x28,
-	OUT_X_H_G = 0x29,
-	OUT_Y_L_G = 0x3A,
-	OUT_Y_H_G = 0x2B,
-	OUT_Z_L_G = 0x2C,
-	OUT_Z_H_G = 0x2D
-};
-
-typedef struct _CTRL_REG1_G_VALUE {
-	unsigned char x_en : 1;
-	unsigned char y_en : 1;
-	unsigned char z_en : 1;
-	unsigned char pd : 1;
-	unsigned char dr_bw : 4;
-} CTRL_REG1_G_VALUE;
-
-typedef struct _CTRL_REG2_G_VALUE {
-	unsigned char hpcf : 4;
-	unsigned char hpm : 2;
-	unsigned char : 2;
-} CTRL_REG2_G_VALUE;
-
 void lsm_init(const LSM9DS0_CONFIG* config) {
 	// Copy over configuration block:
 	g_config = *config;
@@ -230,6 +98,20 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		reg2.hpcf = g_config.hpcf;
 		TM_I2C_Write(g_config.i2c, i2c_addr_g, CTRL_REG2_G, *(uint8_t*)&reg2);
 	}
+	
+	// Interrupt configuration:
+	{
+		INT_GEN_1_REG_VALUE intGen;
+		intGen.AOI = 0;
+		intGen._6D = 0;
+		intGen.XHIE = 1;
+		intGen.XLIE = 1;
+		intGen.YHIE = 1;
+		intGen.YLIE = 1;
+		intGen.ZHIE = 1;
+		intGen.ZLIE = 1;
+		TM_I2C_Write(g_config.i2c, i2c_addr_g, INT_GEN_1_REG, *(uint8_t*)&intGen);
+	}
 }
 
 lsm_ddx lsm_read_ddx(void) {
@@ -278,5 +160,6 @@ lsm_v lsm_read_compass(void) {
 }
 
 int lsm_handle_interrupt(void) {
+	my_printf("Interrupt\r\n");
 	return 0;
 }
