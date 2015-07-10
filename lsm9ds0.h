@@ -85,6 +85,14 @@ typedef enum _eMHPFMS {
 	eMHPFMSAutoReset
 } eMHPFMS;
 
+typedef enum _eFIFOMode {
+	eFIFOModeBypass = 0,
+	eFIFOModeFIFO = 1,
+	eFIFOModeStream = 2,
+	eFIFOModeStreamToFIFO = 3,
+	eFIFOModeBypassToStream = 4
+} eFIFOMode;
+
 typedef struct LSM9DS0_CONFIG {
 	// Interrupt block and lines.
 	GPIO_TypeDef* GPIO_int;

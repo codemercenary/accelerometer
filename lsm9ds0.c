@@ -3,6 +3,7 @@
 #include "lsm9ds0.h"
 #include "tm_stm32f4_i2c.h"
 #include "my_printf.h"
+#include "lsm9ds0_regs.h"
 
 static LSM9DS0_CONFIG g_config;
 
@@ -101,16 +102,21 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 	
 	// Interrupt configuration:
 	{
-		INT_GEN_1_REG_VALUE intGen;
-		intGen.AOI = 0;
-		intGen._6D = 0;
-		intGen.XHIE = 1;
-		intGen.XLIE = 1;
-		intGen.YHIE = 1;
-		intGen.YLIE = 1;
-		intGen.ZHIE = 1;
-		intGen.ZLIE = 1;
-		TM_I2C_Write(g_config.i2c, i2c_addr_g, INT_GEN_1_REG, *(uint8_t*)&intGen);
+		FIFO_CTRL_REG_VALUE fifoCtrl;
+		fifoCtrl.fth = 0;
+		fifoCtrl.fm = eFIFOModeFIFO;
+		TM_I2C_Write(g_config.i2c, i2c_addr_g, INT_GEN_2_REG, *(uint8_t*)&fifoCtrl);
+		
+		INT_GEN_2_REG_VALUE intGen;
+		intGen.aoi = 0;
+		intGen._6d = 0;
+		intGen.xhie = 1;
+		intGen.xlie = 1;
+		intGen.yhie = 1;
+		intGen.ylie = 1;
+		intGen.zhie = 1;
+		intGen.zlie = 1;
+		TM_I2C_Write(g_config.i2c, i2c_addr_g, INT_GEN_2_REG, *(uint8_t*)&intGen);
 	}
 }
 
