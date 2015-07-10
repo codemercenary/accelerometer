@@ -2,13 +2,18 @@
 #define _LSM9DS0_REGS_H
 
 // Names of all available registers
-enum {
+typedef enum _eI2CAddr_AM {
 	OUT_X_L_M = 0x08,
 	OUT_X_H_M = 0x09,
 	OUT_Y_L_M = 0x0A,
 	OUT_Y_H_M = 0x0B,
 	OUT_Z_L_M = 0x0C,
 	OUT_Z_H_M = 0x0D,
+	
+	INT_CTRL_REG_M = 0x12,
+	INT_SRC_REG_M = 0x13,
+	INT_THS_L_M = 0x14,
+	INT_THS_H_M = 0x15,
 	
 	CTRL_REG0_XM = 0x1F,
 	CTRL_REG1_XM = 0x20,
@@ -25,6 +30,8 @@ enum {
 	OFFSET_Y_H_M = 0x19,
 	OFFSET_Z_L_M = 0x1A,
 	OFFSET_Z_H_M = 0x1B,
+	
+	STATUS_REG_A = 0x27,
 	
 	OUT_X_L_A = 0x28,
 	OUT_X_H_A = 0x29,
@@ -43,7 +50,18 @@ enum {
 	INT_GEN_2_SRC = 0x35,
 	INT_GEN_2_THS = 0x36,
 	INT_GEN_2_DURATION = 0x37
-};
+} eI2CAddr_AM;
+
+typedef struct _INT_CTRL_REG_M_VALUE {
+	unsigned char mien : 1;
+	unsigned char _4d : 1;
+	unsigned char iel : 1;
+	unsigned char iea : 1;
+	unsigned char pp_od : 1;
+	unsigned char zmien : 1;
+	unsigned char ymien : 1;
+	unsigned char xmien : 1;
+} INT_CTRL_REG_M_VALUE;
 
 typedef struct _CTRL_REG0_XM_VALUE {
 	
@@ -116,6 +134,17 @@ typedef struct _CTRL_REG7_XM_VALUE {
 	unsigned char md : 2;
 } CTRL_REG7_XM_VALUE;
 
+typedef struct _STATUS_REG_A_VALUE {
+	unsigned xada : 1;
+	unsigned yada : 1;
+	unsigned zada : 1;
+	unsigned zyxada : 1;
+	unsigned xaor : 1;
+	unsigned yaor : 1;
+	unsigned zaor : 1;
+	unsigned zyxaor : 1;
+} STATUS_REG_A_VALUE;
+
 typedef struct _FIFO_CTRL_REG_VALUE {
 	unsigned char fth : 5;
 	unsigned char fm : 3;
@@ -167,7 +196,7 @@ typedef INT_GEN_1_SRC_VALUE INT_GEN_2_SRC_VALUE;
 typedef INT_GEN_1_THS_VALUE INT_GEN_2_THS_VALUE;
 typedef INT_GEN_1_DURATION_VALUE INT_GEN_2_DURATION_VALUE;
 
-enum {
+typedef enum _eI2CAddr_G {
 	CTRL_REG1_G = 0x20,
 	CTRL_REG2_G = 0x21,
 	CTRL_REG3_G = 0x22,
@@ -179,7 +208,7 @@ enum {
 	OUT_Y_H_G = 0x2B,
 	OUT_Z_L_G = 0x2C,
 	OUT_Z_H_G = 0x2D
-};
+} eI2CAddr_G;
 
 typedef struct _CTRL_REG1_G_VALUE {
 	unsigned char x_en : 1;

@@ -157,8 +157,3 @@ typedef struct _lsm_v {
 } lsm_v;
 lsm_v lsm_read_compass(void);
 
-// @summary Callback to be invoked when the line interrupt has been asserted
-// @returns Nonzero to indicate that an interrupt was processed
-int lsm_handle_interrupt(void);
-
-

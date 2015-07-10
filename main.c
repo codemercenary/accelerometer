@@ -44,6 +44,7 @@ int main(void)
     while(1) {
 		delay_ms(2);
 		
+		/*
 		lsm_ddx ddv = lsm_read_ddx();
 		my_printf("ddv = (%d, %d, %d)\r\n", ddv.ddx, ddv.ddy, ddv.ddz);
 		
@@ -52,12 +53,8 @@ int main(void)
 		
 		lsm_deuler deuler = lsm_read_deuler();
 		my_printf("dv = (%d, %d, %d)\r\n", deuler.dx, deuler.dy, deuler.dz);
+		*/
     }
-}
-
-void EXTI0_IRQHandler(void)
-{
-	GPIO_SetBits(GPIOD, GPIO_Pin_12);
 }
 
 void init_LED()
