@@ -315,6 +315,7 @@ void EXTI1_IRQHandler(void)
 void EXTI2_IRQHandler(void)
 {
 	lsm_handle_interrupt_INT1_XM();
+	EXTI_ClearITPendingBit(EXTI_Line0);
 }
 
 void EXTI3_IRQHandler(void)
