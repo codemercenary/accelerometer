@@ -4,6 +4,7 @@
 #include "tm_stm32f4_gpio.h"
 #include "my_printf.h"
 #include "lsm9ds0.h"
+#include "task.h"
 
 __IO uint32_t g_timing_delay;
 __IO uint32_t g_ticks = 0; // increments every millisecond
@@ -42,7 +43,8 @@ int main(void)
     my_printf("Begin ... \r\n");
 
     while(1) {
-		delay_ms(2);
+		task_run();
+		
 		
 		/*
 		lsm_ddx ddv = lsm_read_ddx();
