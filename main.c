@@ -215,15 +215,15 @@ void init_accel(void) {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
 	// Set up interrupt sources
-	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource0);
 	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource1);
 	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource2);
 	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource3);
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource4);
 	
 	LSM9DS0_CONFIG config;
 	config.GPIO_int = GPIOE;
-	config.INTG = GPIO_Pin_0;
-	config.DRDYG = GPIO_Pin_2;
+	config.INTG = GPIO_Pin_2;
+	config.DRDYG = GPIO_Pin_4;
 	config.INT1_XM = GPIO_Pin_3;
 	config.INT2_XM = GPIO_Pin_1;
 	

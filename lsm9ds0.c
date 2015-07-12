@@ -72,14 +72,14 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 			lsm_handle_interrupt_INT2_XM
 		};
 		for(int i = 0; i < 4; i++) {
-			// We don't support interrupt pins other than 0-3
-			if(intPins[i] > GPIO_Pin_3) {
+			// We don't support interrupt pins other than 1-4
+			if(!(GPIO_Pin_1 <= intPins[i] && intPins[i] <= GPIO_Pin_4)) {
 				my_printf("An interrupt GPIO was requested that is out of bounds\r\n");
 				return 1;
 			}
 			
 			// We just enabled interrupt irqn, and the dispatcher is intDispatch[i]
-			int irqn = 31 - __CLZ(intPins[i]);
+			int irqn = (31 - __CLZ(intPins[i])) - 1;
 			pfnDispatch[irqn] = dispatchTab[i];
 		}
 		
@@ -88,23 +88,23 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		// handled.
 		for(int i = 0; i < 4; i++) {
 			EXTI_InitTypeDef exti;
-			exti.EXTI_Line = EXTI_Line0 << i;
+			exti.EXTI_Line = EXTI_Line1 << i;
 			exti.EXTI_LineCmd = ENABLE;
 			exti.EXTI_Mode = EXTI_Mode_Interrupt;
 			exti.EXTI_Trigger = EXTI_Trigger_Rising;
 			EXTI_Init(&exti);
 			
 			NVIC_InitTypeDef nvic;
-			nvic.NVIC_IRQChannel = EXTI0_IRQn + i;
+			nvic.NVIC_IRQChannel = EXTI1_IRQn + i;
 			nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
 			nvic.NVIC_IRQChannelSubPriority = 0x00;
 			nvic.NVIC_IRQChannelCmd = ENABLE;
 			NVIC_Init(&nvic);
 		}
 		
-		// We know for sure that the required GPIOs are pins 0~3
+		// We know for sure that the required GPIOs are pins 1~4
 		GPIO_InitTypeDef gpio;
-		gpio.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3;
+		gpio.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4;
 		gpio.GPIO_Mode = GPIO_Mode_IN;
 		gpio.GPIO_OType = GPIO_OType_PP;
 		gpio.GPIO_PuPd = GPIO_PuPd_DOWN;
@@ -337,30 +337,30 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 	}
 }
 
-void EXTI0_IRQHandler(void)
-{
-	if (EXTI_GetITStatus(EXTI_Line0) != RESET)
-		task_add(pfnDispatch[0], NULL, NULL);
-	EXTI_ClearITPendingBit(EXTI_Line0);
-}
-
 void EXTI1_IRQHandler(void)
 {
 	if (EXTI_GetITStatus(EXTI_Line1) != RESET)
-		task_add(pfnDispatch[1], NULL, NULL);
+		task_add(pfnDispatch[0], NULL, NULL);
 	EXTI_ClearITPendingBit(EXTI_Line1);
 }
 
 void EXTI2_IRQHandler(void)
 {
 	if (EXTI_GetITStatus(EXTI_Line2) != RESET)
-		task_add(pfnDispatch[2], NULL, NULL);
+		task_add(pfnDispatch[1], NULL, NULL);
 	EXTI_ClearITPendingBit(EXTI_Line2);
 }
 
 void EXTI3_IRQHandler(void)
 {
 	if (EXTI_GetITStatus(EXTI_Line3) != RESET)
-		task_add(pfnDispatch[3], NULL, NULL);
+		task_add(pfnDispatch[2], NULL, NULL);
 	EXTI_ClearITPendingBit(EXTI_Line3);
+}
+
+void EXTI4_IRQHandler(void)
+{
+	if (EXTI_GetITStatus(EXTI_Line4) != RESET)
+		task_add(pfnDispatch[3], NULL, NULL);
+	EXTI_ClearITPendingBit(EXTI_Line4);
 }
