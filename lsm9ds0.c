@@ -16,10 +16,14 @@ static void (*pfnDispatch[4])(void*, void*) = {};
 static uint32_t i2c_addr_am = 0x3A;
 static uint32_t i2c_addr_g = 0xD6;
 
-static void i2c_read_am(eI2CAddr_AM reg, void* value) { *(uint8_t*)value = TM_I2C_Read(g_config.i2c, i2c_addr_am, reg); }
+static uint8_t i2c_read_am_b(eI2CAddr_AM reg) { return TM_I2C_Read(g_config.i2c, i2c_addr_am, reg); }
+static void i2c_read_am(eI2CAddr_AM reg, void* value) { *(uint8_t*)value = i2c_read_am_b(reg); }
 static void i2c_write_am(eI2CAddr_AM reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_am, reg, *(uint8_t*)value); }
-static void i2c_read_g(eI2CAddr_G reg, void* value) { *(uint8_t*)value = TM_I2C_Read(g_config.i2c, i2c_addr_am, reg); }
+
+static uint8_t i2c_read_g_b(eI2CAddr_G reg) { return TM_I2C_Read(g_config.i2c, i2c_addr_g, reg); }
+static void i2c_read_g(eI2CAddr_G reg, void* value) { *(uint8_t*)value = i2c_read_g_b(reg); }
 static void i2c_write_g(eI2CAddr_G reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_g, reg, *(uint8_t*)value); }
+
 static void lsm_handle_interrupt_INTG(void* arg1, void* arg2);
 static void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2);
 static void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2);
@@ -55,73 +59,6 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	if(!TM_I2C_IsDeviceConnected(g_config.i2c, i2c_addr_g)) {
 		my_printf("i2c gyroscope not responding\r\n");
 		return 1;
-	}
-	
-	// Trigger perpipheral reset:
-	{
-		CTRL_REG0_XM_VALUE rebootAM = {};
-		rebootAM.boot = 1;
-		i2c_write_am(CTRL_REG0_XM, &rebootAM);
-		
-		CTRL_REG5_G_VALUE rebootG = {};
-		rebootG.boot = 1;
-		i2c_write_g(CTRL_REG5_G, &rebootG);
-	}
-	
-	// Configure accelerometer:
-	{
-		CTRL_REG1_XM_VALUE reg1;
-		reg1.rate = g_config.gRate;
-		reg1.bdu = 1;
-		reg1.azen = 1;
-		reg1.ayen = 1;
-		reg1.axen = 1;
-		i2c_write_am(CTRL_REG1_XM, &reg1);
-		
-		CTRL_REG2_XM_VALUE reg2;
-		reg2.abw = g_config.lAAFilterBW;
-		reg2.afs = g_config.lMaxScale;
-		reg2.ast = 0;
-		reg2.sim = 0;
-		i2c_write_am(CTRL_REG2_XM, &reg2);
-	}
-	
-	// Configure magnetometer:
-	{
-		CTRL_REG5_XM_VALUE reg5;
-		reg5.temp_en  = 0;
-		reg5.m_res = g_config.mRes;
-		reg5.m_odr = g_config.mODR;
-		reg5.lir2 = 0;
-		reg5.lir1 = 0;
-		i2c_write_am(CTRL_REG5_XM, &reg5);
-		
-		CTRL_REG6_XM_VALUE reg6 = {};
-		reg6.mfs = g_config.mFSR;
-		i2c_write_am(CTRL_REG6_XM, &reg6);
-		
-		CTRL_REG7_XM_VALUE reg7 = {};
-		reg7.ahpm = g_config.ahpm;
-		reg7.afds = 0;
-		reg7.mlp = 0;
-		reg7.md = 0;
-		i2c_write_am(CTRL_REG7_XM, &reg7);
-	}
-	
-	// Configure gyro:
-	{
-		CTRL_REG1_G_VALUE reg1;
-		reg1.dr_bw = g_config.dr_bw;
-		reg1.pd = 1;
-		reg1.x_en = 1;
-		reg1.y_en = 1;
-		reg1.z_en = 1;
-		i2c_write_g(CTRL_REG1_G, &reg1);
-		
-		CTRL_REG2_G_VALUE reg2 = {};
-		reg2.hpm = g_config.hpm;
-		reg2.hpcf = g_config.hpcf;
-		i2c_write_g(CTRL_REG2_G, &reg2);
 	}
 	
 	// Interrupt handlers on our side
@@ -176,6 +113,17 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 				my_printf("Dispatch entry %d was not specified\r\n", i);
 				return 2;
 			}
+	}
+	
+	// Trigger perpipheral reset:
+	{
+		CTRL_REG0_XM_VALUE rebootAM = {};
+		rebootAM.boot = 1;
+		i2c_write_am(CTRL_REG0_XM, &rebootAM);
+		
+		CTRL_REG5_G_VALUE rebootG = {};
+		rebootG.boot = 1;
+		i2c_write_g(CTRL_REG5_G, &rebootG);
 	}
 	
 	// Interrupt generation for accelerometer/magnetometer:
@@ -252,48 +200,105 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		intGen2.zlie = 1;
 		i2c_write_am(INT_GEN_2_REG, &intGen2);*/
 	}
+	
+	// Configure accelerometer:
+	{
+		CTRL_REG1_XM_VALUE reg1;
+		reg1.rate = g_config.gRate;
+		reg1.bdu = 1;
+		reg1.azen = 1;
+		reg1.ayen = 1;
+		reg1.axen = 1;
+		i2c_write_am(CTRL_REG1_XM, &reg1);
+		
+		CTRL_REG2_XM_VALUE reg2;
+		reg2.abw = g_config.lAAFilterBW;
+		reg2.afs = g_config.lMaxScale;
+		reg2.ast = 0;
+		reg2.sim = 0;
+		i2c_write_am(CTRL_REG2_XM, &reg2);
+	}
+	
+	// Configure magnetometer:
+	{
+		CTRL_REG5_XM_VALUE reg5;
+		reg5.temp_en  = 0;
+		reg5.m_res = g_config.mRes;
+		reg5.m_odr = g_config.mODR;
+		reg5.lir2 = 0;
+		reg5.lir1 = 0;
+		i2c_write_am(CTRL_REG5_XM, &reg5);
+		
+		CTRL_REG6_XM_VALUE reg6 = {};
+		reg6.mfs = g_config.mFSR;
+		i2c_write_am(CTRL_REG6_XM, &reg6);
+		
+		CTRL_REG7_XM_VALUE reg7 = {};
+		reg7.ahpm = g_config.ahpm;
+		reg7.afds = 0;
+		reg7.mlp = 0;
+		reg7.md = 0;
+		i2c_write_am(CTRL_REG7_XM, &reg7);
+	}
+	
+	// Configure gyro:
+	{
+		CTRL_REG1_G_VALUE reg1;
+		reg1.dr_bw = g_config.dr_bw;
+		reg1.pd = 1;
+		reg1.x_en = 1;
+		reg1.y_en = 1;
+		reg1.z_en = 1;
+		i2c_write_g(CTRL_REG1_G, &reg1);
+		
+		CTRL_REG2_G_VALUE reg2 = {};
+		reg2.hpm = g_config.hpm;
+		reg2.hpcf = g_config.hpcf;
+		i2c_write_g(CTRL_REG2_G, &reg2);
+	}
+	
 	return 0;
 }
 
 lsm_ddx lsm_read_ddx(void) {
 	lsm_ddx ddx;
 	ddx.ddx =
-		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_A) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_H_A) << 8);
+		i2c_read_am_b(OUT_X_L_A) |
+		(i2c_read_am_b(OUT_X_H_A) << 8);
 	ddx.ddy =
-		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Y_L_A) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Y_H_A) << 8);
+		i2c_read_am_b(OUT_Y_L_A) |
+		(i2c_read_am_b(OUT_Y_H_A) << 8);
 	ddx.ddz =
-		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Z_L_A) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Z_H_A) << 8);
+		i2c_read_am_b(OUT_Z_L_A) |
+		(i2c_read_am_b(OUT_Z_H_A) << 8);
 	return ddx;
 }
 
 lsm_deuler lsm_read_deuler(void) {
 	lsm_deuler euler;
 	euler.dx =
-		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_X_L_G) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_X_H_G) << 8);
+		i2c_read_g_b(OUT_X_L_G) |
+		(i2c_read_g_b(OUT_X_H_G) << 8);
 	euler.dy =
-		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Y_L_G) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Y_H_G) << 8);
+		i2c_read_g_b(OUT_Y_L_G) |
+		(i2c_read_g_b(OUT_Y_H_G) << 8);
 	euler.dz =
-		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Z_L_G) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Z_H_G) << 8);
+		i2c_read_g_b(OUT_Z_L_G) |
+		(i2c_read_g_b(OUT_Z_H_G) << 8);
 	return euler;
 }
 
 lsm_v lsm_read_compass(void) {
 	lsm_v v;
 	v.x =
-		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_M) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_M) << 8);
+		i2c_read_am_b(OUT_X_L_M) |
+		(i2c_read_am_b(OUT_X_L_M) << 8);
 	v.y =
-		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Y_L_M) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Y_H_M) << 8);
+		i2c_read_am_b(OUT_Y_L_M) |
+		(i2c_read_am_b(OUT_Y_H_M) << 8);
 	v.z =
-		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Z_L_M) |
-		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_Z_H_M) << 8);
+		i2c_read_am_b(OUT_Z_L_M) |
+		(i2c_read_am_b(OUT_Z_H_M) << 8);
 	return v;
 }
 
