@@ -301,10 +301,11 @@ void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
 	my_printf("Interrupt INT1\r\n");
 }
 
-static void reverse_three(uint16_t* pThree) {
-	pThree[0] = __REV16(pThree[0]);
-	pThree[1] = __REV16(pThree[1]);
-	pThree[2] = __REV16(pThree[2]);
+static void reverse_three(void* pThree) {
+	uint16_t* pWord = (uint16_t*)pThree;
+	pWord[0] = __REV16(pWord[0]);
+	pWord[1] = __REV16(pWord[1]);
+	pWord[2] = __REV16(pWord[2]);
 }
 
 void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
