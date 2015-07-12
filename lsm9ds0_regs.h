@@ -139,11 +139,11 @@ typedef struct _CTRL_REG6_XM_VALUE {
 } CTRL_REG6_XM_VALUE;
 
 typedef struct _CTRL_REG7_XM_VALUE {
-	unsigned char ahpm : 2;
-	unsigned char afds : 1;
-	unsigned char : 2;
-	unsigned char mlp : 1;
 	unsigned char md : 2;
+	unsigned char mlp : 1;
+	unsigned char : 2;
+	unsigned char afds : 1;
+	unsigned char ahpm : 2;
 } CTRL_REG7_XM_VALUE;
 
 typedef struct _STATUS_REG_A_VALUE {

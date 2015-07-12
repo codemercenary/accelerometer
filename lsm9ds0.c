@@ -18,10 +18,12 @@ static uint32_t i2c_addr_g = 0xD6;
 
 static uint8_t i2c_read_am_b(eI2CAddr_AM reg) { return TM_I2C_Read(g_config.i2c, i2c_addr_am, reg); }
 static void i2c_read_am(eI2CAddr_AM reg, void* value) { *(uint8_t*)value = i2c_read_am_b(reg); }
+static void i2c_read_am_multi(eI2CAddr_G reg, void* data, uint16_t count) { TM_I2C_ReadMulti(g_config.i2c, i2c_addr_am, 0x80 | reg, data, count); }
 static void i2c_write_am(eI2CAddr_AM reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_am, reg, *(uint8_t*)value); }
 
 static uint8_t i2c_read_g_b(eI2CAddr_G reg) { return TM_I2C_Read(g_config.i2c, i2c_addr_g, reg); }
 static void i2c_read_g(eI2CAddr_G reg, void* value) { *(uint8_t*)value = i2c_read_g_b(reg); }
+static void i2c_read_g_multi(eI2CAddr_G reg, void* data, uint16_t count) { TM_I2C_ReadMulti(g_config.i2c, i2c_addr_g, 0x80 | reg, data, count); }
 static void i2c_write_g(eI2CAddr_G reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_g, reg, *(uint8_t*)value); }
 
 static void lsm_handle_interrupt_INTG(void* arg1, void* arg2);
@@ -137,7 +139,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	{
 		CTRL_REG0_XM_VALUE reg0 = {};
 		reg0.boot = 0;
-		reg0.fifo_en = 1;
+		reg0.fifo_en = 0;
 		reg0.wtm_en = 1;
 		reg0.hp_click = 0;
 		reg0.hpis1 = 0;
@@ -147,7 +149,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		CTRL_REG3_XM_VALUE reg3 = {};
 		reg3.p1_empty = 0;
 		reg3.p1_drdyM = 0;
-		reg3.p1_drdyA = 1;
+		reg3.p1_drdyA = 0;
 		reg3.p1_intm = 0;
 		reg3.p1_int2 = 0;
 		reg3.p1_int1 = 0;
@@ -157,9 +159,9 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		my_printf("ctrl_reg3_xm =\t%d\r\n", *(uint8_t*)&reg3);
 		
 		CTRL_REG4_XM_VALUE reg4 = {};
-		reg4.p2_wtm = 0;
+		reg4.p2_wtm = 1;
 		reg4.p2_overrun = 0;
-		reg4.p2_drdyM = 0;
+		reg4.p2_drdyM = 1;
 		reg4.p2_drdyA = 1;
 		reg4.p2_intm = 0;
 		reg4.p2_int2 = 0;
@@ -268,44 +270,22 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 }
 
 lsm_ddx lsm_read_ddx(void) {
-	lsm_ddx ddx;
-	ddx.ddx =
-		i2c_read_am_b(OUT_X_L_A) |
-		(i2c_read_am_b(OUT_X_H_A) << 8);
-	ddx.ddy =
-		i2c_read_am_b(OUT_Y_L_A) |
-		(i2c_read_am_b(OUT_Y_H_A) << 8);
-	ddx.ddz =
-		i2c_read_am_b(OUT_Z_L_A) |
-		(i2c_read_am_b(OUT_Z_H_A) << 8);
+	lsm_ddx ddx = {};
+	i2c_read_am_multi(OUT_X_L_A, &ddx, sizeof(ddx));
 	return ddx;
 }
 
 lsm_deuler lsm_read_deuler(void) {
 	lsm_deuler euler;
-	euler.dx =
-		i2c_read_g_b(OUT_X_L_G) |
-		(i2c_read_g_b(OUT_X_H_G) << 8);
-	euler.dy =
-		i2c_read_g_b(OUT_Y_L_G) |
-		(i2c_read_g_b(OUT_Y_H_G) << 8);
-	euler.dz =
-		i2c_read_g_b(OUT_Z_L_G) |
-		(i2c_read_g_b(OUT_Z_H_G) << 8);
+	euler.dx = i2c_read_g_b(OUT_X_L_G) | (i2c_read_g_b(OUT_X_H_G) << 8);
+	euler.dy = i2c_read_g_b(OUT_Y_L_G) | (i2c_read_g_b(OUT_Y_H_G) << 8);
+	euler.dz = i2c_read_g_b(OUT_Z_L_G) | (i2c_read_g_b(OUT_Z_H_G) << 8);
 	return euler;
 }
 
 lsm_v lsm_read_compass(void) {
 	lsm_v v;
-	v.x =
-		i2c_read_am_b(OUT_X_L_M) |
-		(i2c_read_am_b(OUT_X_L_M) << 8);
-	v.y =
-		i2c_read_am_b(OUT_Y_L_M) |
-		(i2c_read_am_b(OUT_Y_H_M) << 8);
-	v.z =
-		i2c_read_am_b(OUT_Z_L_M) |
-		(i2c_read_am_b(OUT_Z_H_M) << 8);
+	i2c_read_am_multi(OUT_X_L_M, &v, sizeof(v));
 	return v;
 }
 
@@ -322,30 +302,39 @@ void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
 }
 
 void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
-	// Interrupt indicates accelerometer data ready, process it
-	STATUS_REG_A_VALUE valA;
-	while(i2c_read_am(STATUS_REG_A, &valA), valA.zyxada) {
-		lsm_ddx ddv = lsm_read_ddx();
-		
+	// Read FIFO status, decide how much to pull in
+	
+	// Interrupt indicates accelerometer data ready, process it, data payloads
+	// follow immediately (and conveniently) right after the status register
+	for(
+		struct {
+			STATUS_REG_A_VALUE valA;
+			lsm_ddx ddv;
+		} c;
+		i2c_read_am_multi(STATUS_REG_A, &c, sizeof(c)), c.valA.zyxada;
+	)
 		my_printf(
 			"ddv = (%d, %d, %d)\r\n",
-			(int)ddv.ddx,
-			(int)ddv.ddy,
-			(int)ddv.ddz
+			(int)c.ddv.ddx,
+			(int)c.ddv.ddy,
+			(int)c.ddv.ddz
 		);
-	}
 	
-	STATUS_REG_M_VALUE valM;
-	while(i2c_read_am(STATUS_REG_M, &valM), valM.zyxmda) {
-		lsm_v v = lsm_read_compass();
-		
+	// Same situation here, status register followed immediately by the payload
+	for(
+		struct {
+			STATUS_REG_M_VALUE valM;
+			lsm_v v;
+		} c = {};
+		i2c_read_am_multi(STATUS_REG_M, &c, sizeof(c)),
+		c.valM.zyxmda;
+	)
 		my_printf(
 			"v = (%d, %d, %d)\r\n",
-			(int)v.x,
-			(int)v.y,
-			(int)v.z
+			(int)c.v.x,
+			(int)c.v.y,
+			(int)c.v.z
 		);
-	}
 }
 
 void EXTI0_IRQHandler(void)
