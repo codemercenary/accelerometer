@@ -283,15 +283,15 @@ void init_accel(void) {
 void delay_ms(uint32_t t)
 {
     g_timing_delay = t;
-
-    while (g_timing_delay != 0);
+    while (g_timing_delay)
+		// No reason to spin when we can just block until an interrupt is raised
+		__WFI();
 }
 
 void timing_delay_decrement(void)
 {
-    if (g_timing_delay != 0x00) { 
+    if (g_timing_delay)
         g_timing_delay--;
-    }
 }
 
 uint32_t get_ticks()
