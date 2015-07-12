@@ -1,6 +1,7 @@
 #include "stm32f4xx_conf.h"
 #include "stm32f4xx.h"
 #include "stm32f4_discovery.h"
+#include "stm32f4xx_tim.h"
 #include "tm_stm32f4_gpio.h"
 #include "my_printf.h"
 #include "lsm9ds0.h"
@@ -53,17 +54,50 @@ int main(void)
 
 void init_LED()
 {
-    GPIO_InitTypeDef gpio; // LEDS on GPIOD
+    // We'll need a timer peripheral to drive our PWM:
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	
+	// PD12~PD15 are connected to TIM4, so we have to use that one
+	{
+		TIM_TimeBaseInitTypeDef config;
+		config.TIM_Prescaler = 0;
+		config.TIM_CounterMode = TIM_CounterMode_Up;
+		config.TIM_Period = 8399;
+		config.TIM_ClockDivision = TIM_CKD_DIV1;
+		config.TIM_RepetitionCounter = 0;
+		TIM_TimeBaseInit(TIM4, &config);
+		TIM_Cmd(TIM4, ENABLE);
+	}
+	
+	// Now enable the output comparator:
+	{
+		TIM_OCInitTypeDef oc;
+		oc.TIM_OCMode = TIM_OCMode_PWM2;
+		oc.TIM_OutputState = TIM_OutputState_Enable;
+		oc.TIM_OCPolarity = TIM_OCPolarity_Low;
+		oc.TIM_Pulse = 2099;
+		TIM_OC1Init(TIM4, &oc);
+		TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
+	}
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+	
+	// Alternating functions for the LED pins:
+	GPIO_PinAFConfig(GPIOD, GPIO_PinSource12, GPIO_AF_TIM4);
+	GPIO_PinAFConfig(GPIOD, GPIO_PinSource13, GPIO_AF_TIM4);
+	GPIO_PinAFConfig(GPIOD, GPIO_PinSource14, GPIO_AF_TIM4);
+	GPIO_PinAFConfig(GPIOD, GPIO_PinSource15, GPIO_AF_TIM4);
 
-    gpio.GPIO_Pin   = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15;
-	gpio.GPIO_Mode  = GPIO_Mode_OUT;
-	gpio.GPIO_OType = GPIO_OType_PP;
-	gpio.GPIO_PuPd  = GPIO_PuPd_NOPULL;
-	gpio.GPIO_Speed = GPIO_Speed_100MHz;
-
-	GPIO_Init(GPIOD, &gpio);
+	// Enable the GPIOs for the LED
+	{
+		GPIO_InitTypeDef gpio;
+		gpio.GPIO_Pin   = GPIO_Pin_12 | GPIO_Pin_13 | GPIO_Pin_14 |  GPIO_Pin_15;
+		gpio.GPIO_Mode  = GPIO_Mode_AF;
+		gpio.GPIO_OType = GPIO_OType_PP;
+		gpio.GPIO_PuPd  = GPIO_PuPd_NOPULL;
+		gpio.GPIO_Speed = GPIO_Speed_100MHz;
+		GPIO_Init(GPIOD, &gpio);
+	}
 }
 
 void init_blue_push_button()
@@ -121,6 +155,7 @@ void init_UART4()
 }
 
 static void print_accel(const lsm_ddv* ddv) {
+	if(0)
 	my_printf(
 		"ddv = (%d, %d, %d)\r\n",
 		(int)ddv->ddx,
@@ -133,6 +168,24 @@ static void print_gyro(const lsm_deuler* dEuler) {
 }
 
 static void print_compass(const lsm_v* v) {
+	return;
+	if(v->x < 0) {
+		GPIO_ResetBits(GPIOD, GPIO_Pin_12);
+		GPIO_SetBits(GPIOD, GPIO_Pin_14);
+	} else {
+		GPIO_SetBits(GPIOD, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOD, GPIO_Pin_14);
+	}
+	
+	if(v->y < 0) {
+		GPIO_ResetBits(GPIOD, GPIO_Pin_13);
+		GPIO_SetBits(GPIOD, GPIO_Pin_15);
+	} else {
+		GPIO_SetBits(GPIOD, GPIO_Pin_13);
+		GPIO_ResetBits(GPIOD, GPIO_Pin_15);
+	}
+	
+	if(0)
 	my_printf(
 		"v = (%d, %d, %d)\r\n",
 		(int)v->x,
@@ -179,10 +232,12 @@ void init_accel(void) {
 	config.hpm = eHPFM_Normal;
 	config.hpcf = 5;		// Corresponds to 1.8Hz
 	
-	config.mRes = eMResolutionLow;
-	config.mODR = eMDataRate_3_125Hz;
+	config.mRes = eMResolutionHigh;
+	config.mODR = eMDataRate_50Hz;
 	config.mFSR = eMFSR4Gauss;
 	config.ahpm = eMHPFMSNormal;
+	
+	// Callbacks:
 	config.pfnA = print_accel;
 	config.pfnG = print_gyro;
 	config.pfnM = print_compass;
