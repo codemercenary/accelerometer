@@ -16,6 +16,13 @@ typedef enum _eI2CAddr_AM {
 	INT_THS_L_M = 0x14,
 	INT_THS_H_M = 0x15,
 	
+	OFFSET_X_L_M = 0x16,
+	OFFSET_X_H_M = 0x17,
+	OFFSET_Y_L_M = 0x18,
+	OFFSET_Y_H_M = 0x19,
+	OFFSET_Z_L_M = 0x1A,
+	OFFSET_Z_H_M = 0x1B,
+	
 	CTRL_REG0_XM = 0x1F,
 	CTRL_REG1_XM = 0x20,
 	CTRL_REG2_XM = 0x21,
@@ -25,18 +32,11 @@ typedef enum _eI2CAddr_AM {
 	CTRL_REG6_XM = 0x25,
 	CTRL_REG7_XM = 0x26,
 	
-	OFFSET_X_L_M = 0x16,
-	OFFSET_X_H_M = 0x17,
-	OFFSET_Y_L_M = 0x18,
-	OFFSET_Y_H_M = 0x19,
-	OFFSET_Z_L_M = 0x1A,
-	OFFSET_Z_H_M = 0x1B,
-	
 	STATUS_REG_A = 0x27,
 	
 	OUT_X_L_A = 0x28,
 	OUT_X_H_A = 0x29,
-	OUT_Y_L_A = 0x3A,
+	OUT_Y_L_A = 0x2A,
 	OUT_Y_H_A = 0x2B,
 	OUT_Z_L_A = 0x2C,
 	OUT_Z_H_A = 0x2D,
