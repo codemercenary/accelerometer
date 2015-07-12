@@ -38,24 +38,16 @@ int main(void)
     init_LED();
     init_blue_push_button();
     init_UART4();
+    
+    // Delay to give the accelerometer enough time to power on
+    delay_ms(250);
     init_accel();
     
     my_printf("Begin ... \r\n");
 
     while(1) {
 		task_run();
-		
-		
-		/*
-		lsm_ddx ddv = lsm_read_ddx();
-		my_printf("ddv = (%d, %d, %d)\r\n", ddv.ddx, ddv.ddy, ddv.ddz);
-		
-		lsm_v north = lsm_read_compass();
-		my_printf("v = (%d, %d, %d)\r\n", north.x, north.y, north.z);
-		
-		lsm_deuler deuler = lsm_read_deuler();
-		my_printf("dv = (%d, %d, %d)\r\n", deuler.dx, deuler.dy, deuler.dz);
-		*/
+		task_wait();
     }
 }
 
