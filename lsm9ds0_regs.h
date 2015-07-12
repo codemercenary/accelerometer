@@ -219,10 +219,12 @@ typedef enum _eI2CAddr_G {
 	
 	OUT_X_L_G = 0x28,
 	OUT_X_H_G = 0x29,
-	OUT_Y_L_G = 0x3A,
+	OUT_Y_L_G = 0x2A,
 	OUT_Y_H_G = 0x2B,
 	OUT_Z_L_G = 0x2C,
-	OUT_Z_H_G = 0x2D
+	OUT_Z_H_G = 0x2D,
+	
+	FIFO_CTRL_REG_G = 0x2E
 } eI2CAddr_G;
 
 typedef struct _CTRL_REG1_G_VALUE {
@@ -249,13 +251,14 @@ typedef struct _CTRL_REG5_G_VALUE {
 } CTRL_REG5_G_VALUE;
 
 typedef struct _STATUS_REG_G_VALUE {
-	unsigned char xda : 1;
-	unsigned char yda : 1;
-	unsigned char zda : 1;
-	unsigned char zyxda : 1;
-	unsigned char xor : 1;
-	unsigned char yor : 1;
+	unsigned char zyxor : 1;
 	unsigned char zor : 1;
+	unsigned char yor : 1;
+	unsigned char xor : 1;
+	unsigned char zyxda : 1;
+	unsigned char zda : 1;
+	unsigned char yda : 1;
+	unsigned char xda : 1;
 } STATUS_REG_G_VALUE;
 
 #endif
