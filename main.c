@@ -26,6 +26,10 @@ int main(void)
        To reconfigure the default setting of SystemInit() function, refer to
        system_stm32f4xx.c file
      */
+	
+	// Need to enable system configuration peripheral or our interrupt
+	// configuration won't get picked up by anyone
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
     // Enable Usage Fault, Bus Fault, and MMU Fault, else it will default to HardFault handler
     //SCB->SHCSR |= 0x00070000; 
@@ -109,17 +113,34 @@ void init_LED()
 
 void init_blue_push_button()
 {
-    GPIO_InitTypeDef gpio; // push button on GPIOA
-
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
-	gpio.GPIO_Pin   = GPIO_Pin_0;
-	gpio.GPIO_Mode  = GPIO_Mode_IN;
-	gpio.GPIO_OType = GPIO_OType_PP;
-	gpio.GPIO_PuPd  = GPIO_PuPd_DOWN;
-	gpio.GPIO_Speed = GPIO_Speed_100MHz;
-
-	GPIO_Init(GPIOA, &gpio);
+	{
+		GPIO_InitTypeDef gpio;
+		gpio.GPIO_Pin   = GPIO_Pin_0;
+		gpio.GPIO_Mode  = GPIO_Mode_IN;
+		gpio.GPIO_OType = GPIO_OType_PP;
+		gpio.GPIO_PuPd  = GPIO_PuPd_DOWN;
+		gpio.GPIO_Speed = GPIO_Speed_100MHz;
+		GPIO_Init(GPIOA, &gpio);
+	}
+	
+	// Enable our ISR on pin PA0
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOA, EXTI_PinSource0);
+	
+	EXTI_InitTypeDef exti;
+	exti.EXTI_Line = EXTI_Line0;
+	exti.EXTI_LineCmd = ENABLE;
+	exti.EXTI_Mode = EXTI_Mode_Interrupt;
+	exti.EXTI_Trigger = EXTI_Trigger_Rising;
+	EXTI_Init(&exti);
+	
+	NVIC_InitTypeDef nvic;
+	nvic.NVIC_IRQChannel = EXTI0_IRQn;
+	nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
+	nvic.NVIC_IRQChannelSubPriority = 0x00;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&nvic);
 }
 
 void init_UART4()
@@ -159,6 +180,13 @@ void init_UART4()
 
     /* Enable USART */
     USART_Cmd(UART4, ENABLE);
+}
+
+void EXTI0_IRQHandler(void) {
+	if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
+		my_printf("EXTI0 reached\r\n");
+	}
+	EXTI_ClearITPendingBit(EXTI_Line0);
 }
 
 static void onAccel(const lsm_ddv* ddv) {
@@ -209,10 +237,6 @@ void init_accel(void) {
 	// Explicitly enable our peripherals
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
-	
-	// Need to enable system configuration peripheral or our interrupt
-	// configuration won't get picked up by anyone
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
 	// Set up interrupt sources
 	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource1);
