@@ -89,6 +89,30 @@
   #define assert_param(expr) ((void)0)
 #endif /* USE_FULL_ASSERT */
 
+// @summary Turns on debug print for magnetic data
+#define ENABLE_PRINT_M 0
+#if ENABLE_PRINT_M
+	#define PRINT_M my_printf
+#else
+	#define PRINT_M(...)
+#endif
+
+// @summary Turns on debug print for acceleration data
+#define ENABLE_PRINT_A 0
+#if ENABLE_PRINT_A
+	#define PRINT_A my_printf
+#else
+	#define PRINT_A(...)
+#endif
+
+// @summary Turns on debug print for gyro data
+#define ENABLE_PRINT_G 0
+#if ENABLE_PRINT_G
+	#define PRINT_G my_printf
+#else
+	#define PRINT_G(...)
+#endif
+
 #endif /* __STM32F4xx_CONF_H */
 
 /******************* (C) COPYRIGHT 2011 STMicroelectronics *****END OF FILE****/

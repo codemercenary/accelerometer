@@ -15,7 +15,6 @@ void delay_ms(uint32_t t);
 void init_UART4();
 void init_LED();
 void init_accel();
-void init_cs();
 void init_blue_push_button();
 uint32_t get_ticks();
 
@@ -69,15 +68,23 @@ void init_LED()
 		TIM_Cmd(TIM4, ENABLE);
 	}
 	
-	// Now enable the output comparator:
+	// Enable output comparators on everything, set the thresholds to
+	// zero initially.  Let the callback assign them properly.
 	{
 		TIM_OCInitTypeDef oc;
 		oc.TIM_OCMode = TIM_OCMode_PWM2;
 		oc.TIM_OutputState = TIM_OutputState_Enable;
 		oc.TIM_OCPolarity = TIM_OCPolarity_Low;
-		oc.TIM_Pulse = 2099;
+		oc.TIM_Pulse = 0;
+		
 		TIM_OC1Init(TIM4, &oc);
 		TIM_OC1PreloadConfig(TIM4, TIM_OCPreload_Enable);
+		TIM_OC2Init(TIM4, &oc);
+		TIM_OC2PreloadConfig(TIM4, TIM_OCPreload_Enable);
+		TIM_OC3Init(TIM4, &oc);
+		TIM_OC3PreloadConfig(TIM4, TIM_OCPreload_Enable);
+		TIM_OC4Init(TIM4, &oc);
+		TIM_OC4PreloadConfig(TIM4, TIM_OCPreload_Enable);
 	}
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
@@ -154,9 +161,8 @@ void init_UART4()
     USART_Cmd(UART4, ENABLE);
 }
 
-static void print_accel(const lsm_ddv* ddv) {
-	if(0)
-	my_printf(
+static void onAccel(const lsm_ddv* ddv) {
+	PRINT_A(
 		"ddv = (%d, %d, %d)\r\n",
 		(int)ddv->ddx,
 		(int)ddv->ddy,
@@ -164,29 +170,34 @@ static void print_accel(const lsm_ddv* ddv) {
 	);
 }
 
-static void print_gyro(const lsm_deuler* dEuler) {
+static void onGyro(const lsm_deuler* dEuler) {
 }
 
-static void print_compass(const lsm_v* v) {
-	return;
-	if(v->x < 0) {
-		GPIO_ResetBits(GPIOD, GPIO_Pin_12);
-		GPIO_SetBits(GPIOD, GPIO_Pin_14);
+static void onCompass(const lsm_v* v) {
+	static int32_t smoothX;
+	static int32_t smoothY;
+	
+	smoothX = (v->x << 16) / 5 + smoothX / 95;
+	smoothY = (v->y << 16) / 5 + smoothY / 95;
+	
+	if(smoothX < 0) {
+		TIM_SetCompare1(TIM4, -(smoothX >> 16));
+		TIM_SetCompare3(TIM4, 0);
+	}
+	else {
+		TIM_SetCompare1(TIM4, 0);
+		TIM_SetCompare3(TIM4, smoothX >> 16);
+	}
+
+	if(smoothY < 0) {		
+		TIM_SetCompare2(TIM4, -(smoothY >> 16));
+		TIM_SetCompare4(TIM4, 0);
 	} else {
-		GPIO_SetBits(GPIOD, GPIO_Pin_12);
-		GPIO_ResetBits(GPIOD, GPIO_Pin_14);
+		TIM_SetCompare2(TIM4, 0);
+		TIM_SetCompare4(TIM4, smoothY >> 16);
 	}
 	
-	if(v->y < 0) {
-		GPIO_ResetBits(GPIOD, GPIO_Pin_13);
-		GPIO_SetBits(GPIOD, GPIO_Pin_15);
-	} else {
-		GPIO_SetBits(GPIOD, GPIO_Pin_13);
-		GPIO_ResetBits(GPIOD, GPIO_Pin_15);
-	}
-	
-	if(0)
-	my_printf(
+	PRINT_M(
 		"v = (%d, %d, %d)\r\n",
 		(int)v->x,
 		(int)v->y,
@@ -238,9 +249,9 @@ void init_accel(void) {
 	config.ahpm = eMHPFMSNormal;
 	
 	// Callbacks:
-	config.pfnA = print_accel;
-	config.pfnG = print_gyro;
-	config.pfnM = print_compass;
+	config.pfnA = onAccel;
+	config.pfnG = onGyro;
+	config.pfnM = onCompass;
 	
 	lsm_init(&config);
 }
