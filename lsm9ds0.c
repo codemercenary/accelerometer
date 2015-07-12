@@ -301,6 +301,12 @@ void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
 	my_printf("Interrupt INT1\r\n");
 }
 
+static void reverse_three(uint16_t* pThree) {
+	pThree[0] = __REV16(pThree[0]);
+	pThree[1] = __REV16(pThree[1]);
+	pThree[2] = __REV16(pThree[2]);
+}
+
 void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 	// Read FIFO status, decide how much to pull in
 	
@@ -312,8 +318,10 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 			lsm_ddv ddv;
 		} c;
 		i2c_read_am_multi(STATUS_REG_A, &c, sizeof(c)), c.valA.zyxada;
-	)
+	) {
+		reverse_three(&c.ddv);
 		g_config.pfnA(&c.ddv);
+	}
 	
 	// Same situation here, status register followed immediately by the payload
 	for(
@@ -323,8 +331,10 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 		} c = {};
 		i2c_read_am_multi(STATUS_REG_M, &c, sizeof(c)),
 		c.valM.zyxmda;
-	)
+	) {
+		reverse_three(&c.v);
 		g_config.pfnM(&c.v);
+	}
 }
 
 void EXTI0_IRQHandler(void)
