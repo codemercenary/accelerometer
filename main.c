@@ -18,6 +18,16 @@ void init_accel();
 void init_blue_push_button();
 uint32_t get_ticks();
 
+// Point in time when the last time the push button was pressed
+uint32_t g_pbLast = 0;
+
+static enum {
+	Accelerometer,
+	Compass,
+	Gyro,
+	LastState
+} state = Accelerometer;
+
 int main(void)
 {
   /*!< At this stage the microcontroller clock setting is already configured, 
@@ -184,7 +194,20 @@ void init_UART4()
 
 void EXTI0_IRQHandler(void) {
 	if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
-		my_printf("EXTI0 reached\r\n");
+		// Debounce!
+		if(g_ticks - g_pbLast > 100) {
+			g_pbLast = g_ticks;
+			
+			// Advance state
+			state = (state + 1) % LastState;
+			
+			// Zeroize all of our PWMs, just in case the corresponding
+			// interrupts aren't asserted in time
+			TIM_SetCompare1(TIM4, 0);
+			TIM_SetCompare2(TIM4, 0);
+			TIM_SetCompare3(TIM4, 0);
+			TIM_SetCompare4(TIM4, 0);
+		}
 	}
 	EXTI_ClearITPendingBit(EXTI_Line0);
 }
@@ -196,14 +219,88 @@ static void onAccel(const lsm_ddv* ddv) {
 		(int)ddv->ddy,
 		(int)ddv->ddz
 	);
+	
+	static int32_t smoothX;
+	static int32_t smoothY;
+	
+	if(state != Accelerometer) {
+		smoothX = 0;
+		smoothY = 0;
+		return;
+	}
+	
+	smoothX = (ddv->ddx << 16) / 5 + smoothX / 95;
+	smoothY = (ddv->ddy << 16) / 5 + smoothY / 95;
+	
+	if(smoothX < 0) {
+		TIM_SetCompare1(TIM4, -(smoothX >> 16));
+		TIM_SetCompare3(TIM4, 0);
+	}
+	else {
+		TIM_SetCompare1(TIM4, 0);
+		TIM_SetCompare3(TIM4, smoothX >> 16);
+	}
+
+	if(smoothY < 0) {		
+		TIM_SetCompare2(TIM4, -(smoothY >> 16));
+		TIM_SetCompare4(TIM4, 0);
+	} else {
+		TIM_SetCompare2(TIM4, 0);
+		TIM_SetCompare4(TIM4, smoothY >> 16);
+	}
 }
 
 static void onGyro(const lsm_deuler* dEuler) {
+	if(state != Gyro) {
+		return;
+	}
+	
+	static int32_t smoothX;
+	static int32_t smoothY;
+	
+	if(state != Accelerometer) {
+		smoothX = 0;
+		smoothY = 0;
+		return;
+	}
+	
+	smoothX = (dEuler->dx << 16) / 5 + smoothX / 95;
+	smoothY = (dEuler->dy << 16) / 5 + smoothY / 95;
+	
+	if(smoothX < 0) {
+		TIM_SetCompare1(TIM4, -(smoothX >> 16));
+		TIM_SetCompare3(TIM4, 0);
+	}
+	else {
+		TIM_SetCompare1(TIM4, 0);
+		TIM_SetCompare3(TIM4, smoothX >> 16);
+	}
+
+	if(smoothY < 0) {		
+		TIM_SetCompare2(TIM4, -(smoothY >> 16));
+		TIM_SetCompare4(TIM4, 0);
+	} else {
+		TIM_SetCompare2(TIM4, 0);
+		TIM_SetCompare4(TIM4, smoothY >> 16);
+	}
 }
 
 static void onCompass(const lsm_v* v) {
+	PRINT_M(
+		"v = (%d, %d, %d)\r\n",
+		(int)v->x,
+		(int)v->y,
+		(int)v->z
+	);
+	
 	static int32_t smoothX;
 	static int32_t smoothY;
+	
+	if(state != Compass) {
+		smoothX = 0;
+		smoothY = 0;
+		return;
+	}
 	
 	smoothX = (v->x << 16) / 5 + smoothX / 95;
 	smoothY = (v->y << 16) / 5 + smoothY / 95;
@@ -224,13 +321,6 @@ static void onCompass(const lsm_v* v) {
 		TIM_SetCompare2(TIM4, 0);
 		TIM_SetCompare4(TIM4, smoothY >> 16);
 	}
-	
-	PRINT_M(
-		"v = (%d, %d, %d)\r\n",
-		(int)v->x,
-		(int)v->y,
-		(int)v->z
-	);
 }
 
 void init_accel(void) {
