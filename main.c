@@ -121,19 +121,33 @@ void init_UART4()
 }
 
 void init_accel(void) {
+	// Explicitly enable our peripherals
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
+	
+	// Need to enable system configuration peripheral or our interrupt
+	// configuration won't get picked up by anyone
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
+
+	// Set up interrupt sources
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource0);
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource1);
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource2);
+	SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource3);
+	
 	LSM9DS0_CONFIG config;
-	config.GPIO_int = GPIOA;
-	config.INTG = GPIO_Pin_3;
-	config.DRDYG = GPIO_Pin_1;
-	config.INT1_XM = GPIO_Pin_2;
-	config.INT2_XM = GPIO_Pin_0;
+	config.GPIO_int = GPIOE;
+	config.INTG = GPIO_Pin_0;
+	config.DRDYG = GPIO_Pin_2;
+	config.INT1_XM = GPIO_Pin_3;
+	config.INT2_XM = GPIO_Pin_1;
 	
 	config.GPIO_en = GPIOD;
-	config.CS_G = GPIO_Pin_2;
-	config.CS_XM = GPIO_Pin_4;
-	config.SDOG = GPIO_Pin_3;
-	config.SDOXM = GPIO_Pin_1;
-	config.DEN_G = GPIO_Pin_0;
+	config.CS_G = GPIO_Pin_4;
+	config.CS_XM = GPIO_Pin_6;
+	config.SDOG = GPIO_Pin_5;
+	config.SDOXM = GPIO_Pin_3;
+	config.DEN_G = GPIO_Pin_2;
 	
 	config.i2c = I2C1;
 	config.gRate = eRate_200_Hz;

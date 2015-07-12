@@ -94,7 +94,8 @@ typedef enum _eFIFOMode {
 } eFIFOMode;
 
 typedef struct LSM9DS0_CONFIG {
-	// Interrupt block and lines.
+	// Interrupt block and lines.  User must configure these lines with
+	// SYSCFG_EXTILineConfig externally and enable the parent peripheral.
 	GPIO_TypeDef* GPIO_int;
 	uint32_t INTG;
 	uint32_t DRDYG;
