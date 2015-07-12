@@ -163,20 +163,3 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config);
 lsm_ddv lsm_read_ddv(void);
 lsm_deuler lsm_read_deuler(void);
 lsm_v lsm_read_compass(void);
-
-// @summary Reads either accelerometer or magnetometer information
-typedef enum _eLSM9DS0ReadType {
-	eLSM9DS0ReadTypeNone,
-	eLSM9DS0ReadTypeA,
-	eLSM9DS0ReadTypeM
-} eLSM9DS0ReadType;
-typedef struct _LSM9DS0_XM_READ {
-	// Read type
-	eLSM9DS0ReadType type;
-	union {
-		lsm_ddv ddx;
-		lsm_v v;
-	};
-} LSM9DS0_XM_READ;
-LSM9DS0_XM_READ lsm_read_xm(void);
-
