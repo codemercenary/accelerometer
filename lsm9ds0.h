@@ -93,6 +93,23 @@ typedef enum _eFIFOMode {
 	eFIFOModeBypassToStream = 4
 } eFIFOMode;
 
+typedef struct _lsm_ddv {
+	int16_t ddx;
+	int16_t ddy;
+	int16_t ddz;
+} lsm_ddv;
+typedef struct _lsm_deuler {
+	int16_t dx;
+	int16_t dy;
+	int16_t dz;
+} lsm_deuler;
+
+typedef struct _lsm_v {
+	int16_t x;
+	int16_t y;
+	int16_t z;
+} lsm_v;
+
 typedef struct LSM9DS0_CONFIG {
 	// Interrupt block and lines.  User must configure these lines with
 	// SYSCFG_EXTILineConfig externally and enable the parent peripheral.
@@ -129,6 +146,11 @@ typedef struct LSM9DS0_CONFIG {
 	eMFSR mFSR;
 	eMHPFMS ahpm;
 	
+	// Callbacks, provided by the user.  Any callback left null will not
+	// be invoked.
+	void (*pfnA)(const lsm_ddv* ddv);
+	void (*pfnG)(const lsm_deuler* dEuler);
+	void (*pfnM)(const lsm_v* v);
 } LSM9DS0_CONFIG;
 
 // @summary Initializes behavior based on the specified GPIO interrupt
@@ -138,25 +160,8 @@ typedef struct LSM9DS0_CONFIG {
 uint8_t lsm_init(const LSM9DS0_CONFIG* config);
 
 // @summary Reads linear accelerometer information
-typedef struct _lsm_ddx {
-	int16_t ddx;
-	int16_t ddy;
-	int16_t ddz;
-} lsm_ddx;
-lsm_ddx lsm_read_ddx(void);
-
-typedef struct _lsm_deuler {
-	int16_t dx;
-	int16_t dy;
-	int16_t dz;
-} lsm_deuler;
+lsm_ddv lsm_read_ddv(void);
 lsm_deuler lsm_read_deuler(void);
-
-typedef struct _lsm_v {
-	int16_t x;
-	int16_t y;
-	int16_t z;
-} lsm_v;
 lsm_v lsm_read_compass(void);
 
 // @summary Reads either accelerometer or magnetometer information
@@ -169,7 +174,7 @@ typedef struct _LSM9DS0_XM_READ {
 	// Read type
 	eLSM9DS0ReadType type;
 	union {
-		lsm_ddx ddx;
+		lsm_ddv ddx;
 		lsm_v v;
 	};
 } LSM9DS0_XM_READ;

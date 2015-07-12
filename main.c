@@ -120,6 +120,27 @@ void init_UART4()
     USART_Cmd(UART4, ENABLE);
 }
 
+static void print_accel(const lsm_ddv* ddv) {
+	my_printf(
+		"ddv = (%d, %d, %d)\r\n",
+		(int)ddv->ddx,
+		(int)ddv->ddy,
+		(int)ddv->ddz
+	);
+}
+
+static void print_gyro(const lsm_deuler* dEuler) {
+}
+
+static void print_compass(const lsm_v* v) {
+	my_printf(
+		"v = (%d, %d, %d)\r\n",
+		(int)v->x,
+		(int)v->y,
+		(int)v->z
+	);
+}
+
 void init_accel(void) {
 	// Explicitly enable our peripherals
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOD, ENABLE);
@@ -162,6 +183,9 @@ void init_accel(void) {
 	config.mODR = eMDataRate_3_125Hz;
 	config.mFSR = eMFSR4Gauss;
 	config.ahpm = eMHPFMSNormal;
+	config.pfnA = print_accel;
+	config.pfnG = print_gyro;
+	config.pfnM = print_compass;
 	
 	lsm_init(&config);
 }

@@ -269,10 +269,10 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	return 0;
 }
 
-lsm_ddx lsm_read_ddx(void) {
-	lsm_ddx ddx = {};
-	i2c_read_am_multi(OUT_X_L_A, &ddx, sizeof(ddx));
-	return ddx;
+lsm_ddv lsm_read_ddv(void) {
+	lsm_ddv ddv = {};
+	i2c_read_am_multi(OUT_X_L_A, &ddv, sizeof(ddv));
+	return ddv;
 }
 
 lsm_deuler lsm_read_deuler(void) {
@@ -309,16 +309,11 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 	for(
 		struct {
 			STATUS_REG_A_VALUE valA;
-			lsm_ddx ddv;
+			lsm_ddv ddv;
 		} c;
 		i2c_read_am_multi(STATUS_REG_A, &c, sizeof(c)), c.valA.zyxada;
 	)
-		my_printf(
-			"ddv = (%d, %d, %d)\r\n",
-			(int)c.ddv.ddx,
-			(int)c.ddv.ddy,
-			(int)c.ddv.ddz
-		);
+		g_config.pfnA(&c.ddv);
 	
 	// Same situation here, status register followed immediately by the payload
 	for(
@@ -329,12 +324,7 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 		i2c_read_am_multi(STATUS_REG_M, &c, sizeof(c)),
 		c.valM.zyxmda;
 	)
-		my_printf(
-			"v = (%d, %d, %d)\r\n",
-			(int)c.v.x,
-			(int)c.v.y,
-			(int)c.v.z
-		);
+		g_config.pfnM(&c.v);
 }
 
 void EXTI0_IRQHandler(void)
