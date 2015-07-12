@@ -3,6 +3,7 @@
 
 // Names of all available registers
 typedef enum _eI2CAddr_AM {
+	STATUS_REG_M = 0x07,
 	OUT_X_L_M = 0x08,
 	OUT_X_H_M = 0x09,
 	OUT_Y_L_M = 0x0A,
@@ -51,6 +52,17 @@ typedef enum _eI2CAddr_AM {
 	INT_GEN_2_THS = 0x36,
 	INT_GEN_2_DURATION = 0x37
 } eI2CAddr_AM;
+
+typedef struct _STATUS_REG_M_VALUE {
+	unsigned xmda : 1;
+	unsigned ymda : 1;
+	unsigned zmda : 1;
+	unsigned zyxmda : 1;
+	unsigned xmor : 1;
+	unsigned ymor : 1;
+	unsigned zmor : 1;
+	unsigned zyxmor : 1;
+} STATUS_REG_M_VALUE;
 
 typedef struct _INT_CTRL_REG_M_VALUE {
 	unsigned char mien : 1;
@@ -201,6 +213,9 @@ typedef enum _eI2CAddr_G {
 	CTRL_REG2_G = 0x21,
 	CTRL_REG3_G = 0x22,
 	CTRL_REG4_G = 0x23,
+	CTRL_REG5_G = 0x24,
+	
+	STATUS_REG_G = 0x27,
 	
 	OUT_X_L_G = 0x28,
 	OUT_X_H_G = 0x29,
@@ -223,5 +238,24 @@ typedef struct _CTRL_REG2_G_VALUE {
 	unsigned char hpm : 2;
 	unsigned char : 2;
 } CTRL_REG2_G_VALUE;
+
+typedef struct _CTRL_REG5_G_VALUE {
+	unsigned char out_sel : 2;
+	unsigned char int_sel : 2;
+	unsigned char hpen : 1;
+	unsigned char : 1;
+	unsigned char fifo_en : 1;
+	unsigned char boot : 1;
+} CTRL_REG5_G_VALUE;
+
+typedef struct _STATUS_REG_G_VALUE {
+	unsigned char xda : 1;
+	unsigned char yda : 1;
+	unsigned char zda : 1;
+	unsigned char zyxda : 1;
+	unsigned char xor : 1;
+	unsigned char yor : 1;
+	unsigned char zor : 1;
+} STATUS_REG_G_VALUE;
 
 #endif

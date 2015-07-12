@@ -133,7 +133,8 @@ typedef struct LSM9DS0_CONFIG {
 // @summary Initializes behavior based on the specified GPIO interrupt
 // @param config The pin configuration block
 // @remarks The caller is responsible for enabling the clock block
-void lsm_init(const LSM9DS0_CONFIG* config);
+// @returns 0 indicates success, any other value is an error code
+uint8_t lsm_init(const LSM9DS0_CONFIG* config);
 
 // @summary Reads linear accelerometer information
 typedef struct _lsm_ddx {
@@ -156,4 +157,20 @@ typedef struct _lsm_v {
 	int16_t z;
 } lsm_v;
 lsm_v lsm_read_compass(void);
+
+// @summary Reads either accelerometer or magnetometer information
+typedef enum _eLSM9DS0ReadType {
+	eLSM9DS0ReadTypeNone,
+	eLSM9DS0ReadTypeA,
+	eLSM9DS0ReadTypeM
+} eLSM9DS0ReadType;
+typedef struct _LSM9DS0_XM_READ {
+	// Read type
+	eLSM9DS0ReadType type;
+	union {
+		lsm_ddx ddx;
+		lsm_v v;
+	};
+} LSM9DS0_XM_READ;
+LSM9DS0_XM_READ lsm_read_xm(void);
 

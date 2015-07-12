@@ -4,8 +4,13 @@
 #include "tm_stm32f4_i2c.h"
 #include "my_printf.h"
 #include "lsm9ds0_regs.h"
+#include "task.h"
+#include <stdlib.h>
 
 static LSM9DS0_CONFIG g_config;
+
+// Dispatch table for interrupt lines:
+static void (*pfnDispatch[4])(void*, void*) = {};
 
 // Seven-bit slave addresses, shifted left one bit already
 static uint32_t i2c_addr_am = 0x3A;
@@ -15,8 +20,12 @@ static void i2c_read_am(eI2CAddr_AM reg, void* value) { *(uint8_t*)value = TM_I2
 static void i2c_write_am(eI2CAddr_AM reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_am, reg, *(uint8_t*)value); }
 static void i2c_read_g(eI2CAddr_G reg, void* value) { *(uint8_t*)value = TM_I2C_Read(g_config.i2c, i2c_addr_am, reg); }
 static void i2c_write_g(eI2CAddr_G reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_g, reg, *(uint8_t*)value); }
+static void lsm_handle_interrupt_INTG(void* arg1, void* arg2);
+static void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2);
+static void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2);
+static void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2);
 
-void lsm_init(const LSM9DS0_CONFIG* config) {
+uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	// Copy over configuration block:
 	g_config = *config;
 
@@ -41,18 +50,22 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 	
 	if(!TM_I2C_IsDeviceConnected(g_config.i2c, i2c_addr_am)) {
 		my_printf("i2c accelerometer not responding\r\n");
-		return;
+		return 1;
 	}
 	if(!TM_I2C_IsDeviceConnected(g_config.i2c, i2c_addr_g)) {
 		my_printf("i2c gyroscope not responding\r\n");
-		return;
+		return 1;
 	}
 	
 	// Trigger perpipheral reset:
 	{
-		CTRL_REG0_XM_VALUE reboot = {};
-		reboot.boot = 1;
-		i2c_write_am(CTRL_REG0_XM, &reboot);
+		CTRL_REG0_XM_VALUE rebootAM = {};
+		rebootAM.boot = 1;
+		i2c_write_am(CTRL_REG0_XM, &rebootAM);
+		
+		CTRL_REG5_G_VALUE rebootG = {};
+		rebootG.boot = 1;
+		i2c_write_g(CTRL_REG5_G, &rebootG);
 	}
 	
 	// Configure accelerometer:
@@ -123,7 +136,19 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		my_printf("GPIOs configured\r\n");
 		
 		int intPins[] = {g_config.INTG, g_config.DRDYG, g_config.INT1_XM, g_config.INT2_XM};
+		void (*dispatchTab[])(void*, void*) = {
+			lsm_handle_interrupt_INTG,
+			lsm_handle_interrupt_DRDYG,
+			lsm_handle_interrupt_INT1_XM,
+			lsm_handle_interrupt_INT2_XM
+		};
 		for(int i = 0; i < 4; i++) {
+			// We don't support interrupt pins other than 0-3
+			if(intPins[i] > GPIO_Pin_3) {
+				my_printf("An interrupt GPIO was requested that is out of bounds\r\n");
+				return 1;
+			}
+			
 			// Lines are the same as the corresponding interrupt pins.  We need to enable all four.
 			EXTI_InitTypeDef exti;
 			exti.EXTI_Line = intPins[i];
@@ -132,28 +157,39 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 			exti.EXTI_Trigger = EXTI_Trigger_Rising;
 			EXTI_Init(&exti);
 			
-			// Add IRQ vector to NVIC
+			// Enable the corresponding interrupt with the NVIC
+			int irqn = 31 - __CLZ(intPins[i]);
 			NVIC_InitTypeDef nvic;
-			nvic.NVIC_IRQChannel = EXTI0_IRQn + i;
+			nvic.NVIC_IRQChannel = EXTI0_IRQn + irqn;
 			nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
 			nvic.NVIC_IRQChannelSubPriority = 0x00;
 			nvic.NVIC_IRQChannelCmd = ENABLE;
 			NVIC_Init(&nvic);
+			
+			// Set up the map.  We just enabled interrupt irqn, and the dispatcher is intDispatch[i]
+			pfnDispatch[irqn] = dispatchTab[i];
 		}
+		
+		// Verify that we saturated all four dispatchers:
+		for(int i = 0; i < 4; i++)
+			if(!pfnDispatch[i]) {
+				my_printf("Dispatch entry %d was not specified\r\n", i);
+				return 2;
+			}
 	}
 	
 	// Interrupt generation for accelerometer/magnetometer:
 	{
-		CTRL_REG0_XM_VALUE reg0;
+		CTRL_REG0_XM_VALUE reg0 = {};
 		reg0.boot = 0;
 		reg0.fifo_en = 1;
-		reg0.wtm_en = 0;
+		reg0.wtm_en = 1;
 		reg0.hp_click = 0;
 		reg0.hpis1 = 0;
 		reg0.hpis2 = 0;
 		i2c_write_am(CTRL_REG0_XM, &reg0);
 		
-		CTRL_REG3_XM_VALUE reg3;
+		CTRL_REG3_XM_VALUE reg3 = {};
 		reg3.p1_empty = 0;
 		reg3.p1_drdyM = 0;
 		reg3.p1_drdyA = 1;
@@ -165,7 +201,7 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		i2c_write_am(CTRL_REG3_XM, &reg3);
 		my_printf("ctrl_reg3_xm =\t%d\r\n", *(uint8_t*)&reg3);
 		
-		CTRL_REG4_XM_VALUE reg4;
+		CTRL_REG4_XM_VALUE reg4 = {};
 		reg4.p2_wtm = 0;
 		reg4.p2_overrun = 0;
 		reg4.p2_drdyM = 0;
@@ -177,7 +213,7 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		i2c_write_am(CTRL_REG4_XM, &reg4);
 		my_printf("ctrl_reg4_xm =\t%d\r\n", *(uint8_t*)&reg4);
 		
-		INT_CTRL_REG_M_VALUE iCtrl;
+		INT_CTRL_REG_M_VALUE iCtrl = {};
 		iCtrl.mien = 0;
 		iCtrl._4d = 0;
 		iCtrl.iel = 0;
@@ -189,7 +225,7 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		i2c_write_am(INT_CTRL_REG_M, &iCtrl);
 		my_printf("int_ctrl_reg =\t%d\r\n", *(uint8_t*)&iCtrl);
 		
-		FIFO_CTRL_REG_VALUE fifoCtrl;
+		FIFO_CTRL_REG_VALUE fifoCtrl = {};
 		fifoCtrl.fth = 5;
 		fifoCtrl.fm = eFIFOModeFIFO;
 		i2c_write_am(FIFO_CTRL_REG, &fifoCtrl);
@@ -203,9 +239,9 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		intGen1.ylie = 1;
 		intGen1.zhie = 1;
 		intGen1.zlie = 1;
-		i2c_write_am(INT_GEN_1_REG, &intGen1);
+		i2c_write_am(INT_GEN_1_REG, &intGen1);*/
 		
-		INT_GEN_2_REG_VALUE intGen2;
+		/*INT_GEN_2_REG_VALUE intGen2;
 		intGen2.aoi = 0;
 		intGen2._6d = 0;
 		intGen2.xhie = 1;
@@ -216,11 +252,11 @@ void lsm_init(const LSM9DS0_CONFIG* config) {
 		intGen2.zlie = 1;
 		i2c_write_am(INT_GEN_2_REG, &intGen2);*/
 	}
+	return 0;
 }
 
 lsm_ddx lsm_read_ddx(void) {
-	lsm_ddx ddx = {};
-	
+	lsm_ddx ddx;
 	ddx.ddx =
 		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_A) |
 		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_H_A) << 8);
@@ -234,23 +270,21 @@ lsm_ddx lsm_read_ddx(void) {
 }
 
 lsm_deuler lsm_read_deuler(void) {
-	lsm_deuler deuler = {};
-	
-	deuler.dx =
+	lsm_deuler euler;
+	euler.dx =
 		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_X_L_G) |
 		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_X_H_G) << 8);
-	deuler.dy =
+	euler.dy =
 		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Y_L_G) |
 		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Y_H_G) << 8);
-	deuler.dz =
+	euler.dz =
 		TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Z_L_G) |
 		(TM_I2C_Read(g_config.i2c, i2c_addr_g, OUT_Z_H_G) << 8);
-	return deuler;
+	return euler;
 }
 
 lsm_v lsm_read_compass(void) {
-	lsm_v v = {};
-	
+	lsm_v v;
 	v.x =
 		TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_M) |
 		(TM_I2C_Read(g_config.i2c, i2c_addr_am, OUT_X_L_M) << 8);
@@ -263,28 +297,19 @@ lsm_v lsm_read_compass(void) {
 	return v;
 }
 
-int lsm_handle_interrupt_INTG(void) {
+void lsm_handle_interrupt_INTG(void* arg1, void* arg2) {
 	my_printf("Interrupt INTG\r\n");
-	return 0;
 }
 
-int lsm_handle_interrupt_DRDYG(void) {
+void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
 	my_printf("Interrupt DRDYG\r\n");
-	return 0;
 }
 
-int lsm_handle_interrupt_INT1_XM(void) {
+void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
 	// Interrupt indicates accelerometer data ready, process it
-	STATUS_REG_A_VALUE val;
-	while(i2c_read_am(STATUS_REG_A, &val), val.zyxada) {
-		lsm_ddx ddv = {};
-		uint8_t* data = (uint8_t*)&ddv;
-		i2c_read_am(OUT_X_L_A, data + 0);
-		i2c_read_am(OUT_X_H_A, data + 1);
-		i2c_read_am(OUT_Y_L_A, data + 2);
-		i2c_read_am(OUT_Y_H_A, data + 3);
-		i2c_read_am(OUT_Z_L_A, data + 4);
-		i2c_read_am(OUT_Z_H_A, data + 5);
+	STATUS_REG_A_VALUE valA;
+	while(i2c_read_am(STATUS_REG_A, &valA), valA.zyxada) {
+		lsm_ddx ddv = lsm_read_ddx();
 		
 		my_printf(
 			"ddv = (%d, %d, %d)\r\n",
@@ -294,31 +319,43 @@ int lsm_handle_interrupt_INT1_XM(void) {
 		);
 	}
 	
-	return 0;
+	STATUS_REG_M_VALUE valM;
+	while(i2c_read_am(STATUS_REG_M, &valM), valM.zyxmda) {
+		lsm_v v = lsm_read_compass();
+		
+		my_printf(
+			"v = (%d, %d, %d)\r\n",
+			(int)v.x,
+			(int)v.y,
+			(int)v.z
+		);
+	}
 }
 
-int lsm_handle_interrupt_INT2_XM(void) {
+void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 	my_printf("Interrupt INT2\r\n");
-	return 0;
 }
 
 void EXTI0_IRQHandler(void)
 {
-	lsm_handle_interrupt_INTG();
+	task_add(pfnDispatch[0], NULL, NULL);
+	EXTI_ClearITPendingBit(EXTI_Line0);
 }
 
 void EXTI1_IRQHandler(void)
 {
-	lsm_handle_interrupt_DRDYG();
+	task_add(pfnDispatch[1], NULL, NULL);
+	EXTI_ClearITPendingBit(EXTI_Line1);
 }
 
 void EXTI2_IRQHandler(void)
 {
-	lsm_handle_interrupt_INT1_XM();
-	EXTI_ClearITPendingBit(EXTI_Line0);
+	task_add(pfnDispatch[2], NULL, NULL);
+	EXTI_ClearITPendingBit(EXTI_Line2);
 }
 
 void EXTI3_IRQHandler(void)
 {
-	lsm_handle_interrupt_INT2_XM();
+	task_add(pfnDispatch[3], NULL, NULL);
+	EXTI_ClearITPendingBit(EXTI_Line3);
 }
