@@ -2,6 +2,7 @@
 #include "stm32f4xx.h"
 #include "lsm9ds0.h"
 #include "tm_stm32f4_i2c.h"
+#include "tm_stm32f4_spi.h"
 #include "my_printf.h"
 #include "lsm9ds0_regs.h"
 #include "task.h"
