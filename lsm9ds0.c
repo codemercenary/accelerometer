@@ -379,14 +379,13 @@ void LSM9DS0_ISR(void* param1, void* param2) {
 		pEntry->pfnDispatch();
 		
 		// Cleanup
-		if(GPIO_ReadInputDataBit(g_config.GPIO_int, GPIO_Pin_1))
+		if(GPIO_ReadInputDataBit(g_config.GPIO_int, GPIO_Pin_1 << i))
 			// Still asserted, will need to run again
 			runAgain = 1;
-		else if(__STREXW(asserted, &pEntry->asserted))
+		else if(__STREXW(0, &pEntry->asserted))
 			// Not asserted, but couldn't clear state bit, it was reasserted.  We are going
 			// to need to circle around from the top in order to prevent starvation.
 			runAgain = 1;
-			
 	}
 	
 	if(runAgain)
@@ -394,12 +393,19 @@ void LSM9DS0_ISR(void* param1, void* param2) {
 }
 
 void LSM9DS0_Dispatch(int dispIndex, int exti_line) {
-	if (EXTI_GetITStatus(exti_line) != RESET)
-		// Only add a task if we are asserting the state
-		if(!s_disptab[dispIndex].asserted) {
+	if (EXTI_GetITStatus(exti_line) != RESET) {
+		// Only add a task if we are asserting the first state entry
+		if(
+			!s_disptab[0].asserted &&
+			!s_disptab[1].asserted &&
+			!s_disptab[2].asserted &&
+			!s_disptab[3].asserted
+		)
 			task_add(LSM9DS0_ISR, NULL, NULL);
-			s_disptab[dispIndex].asserted = 1;
-		}
+		
+		// Set the value no matter what
+		s_disptab[dispIndex].asserted = 1;
+	}
 	EXTI_ClearITPendingBit(exti_line);
 }
 
