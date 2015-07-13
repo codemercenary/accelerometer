@@ -360,7 +360,7 @@ void init_accel(void) {
 	config.CS_XM = GPIO_Pin_6;
 	config.SDOG = GPIO_Pin_7;
 	config.SDOXM = GPIO_Pin_3;
-	config.DEN_G = GPIO_Pin_2;
+	config.DEN_G = GPIO_Pin_8;
 	
 	config.i2c = I2C1;
 	config.gRate = eRate_200_Hz;
