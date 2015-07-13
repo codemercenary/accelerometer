@@ -58,19 +58,10 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	delay_ms(250);
     
 	// WHOAMI validation:
-	{
-		uint8_t whoamiXM = i2c_read_am_b(WHO_AM_I_XM);
-		uint8_t whoamiG = i2c_read_g_b(WHO_AM_I_G);
-
-		if(whoamiXM != 0x49) {
-			my_printf("i2c accelerometer not responding\r\n");
-			return 1;
-		}
-		if(whoamiG != 0xD4) {
-			my_printf("i2c gyro not responding\r\n");
-			return 1;
-		}
-	}
+	if(i2c_read_am_b(WHO_AM_I_XM) != 0x49)
+		my_printf("i2c accelerometer not responding\r\n");
+	if(i2c_read_g_b(WHO_AM_I_G) != 0xD4)
+		my_printf("i2c gyro not responding\r\n");
 	
 	// Interrupt handlers on our side
 	{
