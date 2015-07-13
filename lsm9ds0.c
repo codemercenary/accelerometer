@@ -109,7 +109,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		gpio.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4;
 		gpio.GPIO_Mode = GPIO_Mode_IN;
 		gpio.GPIO_OType = GPIO_OType_PP;
-		gpio.GPIO_PuPd = GPIO_PuPd_DOWN;
+		gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
 		gpio.GPIO_Speed = GPIO_Speed_100MHz;
 		GPIO_Init(g_config.GPIO_int, &gpio);
 		my_printf("GPIOs configured\r\n");
@@ -258,7 +258,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		CTRL_REG3_G_VALUE reg3 = {};
 		reg3.i1_int1 = 0;
 		reg3.i1_boot = 0;
-		reg3.h_lactive = 1;
+		reg3.h_lactive = 0;
 		reg3.pp_od = 0;
 		reg3.i2_drdy = 1;
 		reg3.i2_wtm = 1;
@@ -271,6 +271,11 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		i2c_write_g(CTRL_REG5_G, &reg5);
 	}
 	
+	// Prime each interrupt initially, in case that they were asserted right when we started
+	task_add(lsm_handle_interrupt_INTG, NULL, NULL);
+	task_add(lsm_handle_interrupt_DRDYG, NULL, NULL);
+	task_add(lsm_handle_interrupt_INT1_XM, NULL, NULL);
+	task_add(lsm_handle_interrupt_INT2_XM, NULL, NULL);
 	return 0;
 }
 
@@ -282,9 +287,7 @@ lsm_ddv lsm_read_ddv(void) {
 
 lsm_deuler lsm_read_deuler(void) {
 	lsm_deuler euler;
-	euler.dx = i2c_read_g_b(OUT_X_L_G) | (i2c_read_g_b(OUT_X_H_G) << 8);
-	euler.dy = i2c_read_g_b(OUT_Y_L_G) | (i2c_read_g_b(OUT_Y_H_G) << 8);
-	euler.dz = i2c_read_g_b(OUT_Z_L_G) | (i2c_read_g_b(OUT_Z_H_G) << 8);
+	i2c_read_g_multi(OUT_X_L_G, &euler, sizeof(euler));
 	return euler;
 }
 
@@ -318,6 +321,10 @@ void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
 		reverse_three(&c.dv);
 		g_config.pfnG(&c.dv);
 	}
+	
+	// Pend a task to ourselves to prevent starvation
+	if(GPIO_ReadInputDataBit(g_config.GPIO_int, g_config.DRDYG))
+		task_add(lsm_handle_interrupt_DRDYG, NULL, NULL);
 }
 
 void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
@@ -357,8 +364,7 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 void EXTI1_IRQHandler(void)
 {
 	if (EXTI_GetITStatus(EXTI_Line1) != RESET)
-		if(!task_add(pfnDispatch[0], NULL, NULL))
-			my_printf("Overrun\r\n");
+		task_add(pfnDispatch[0], NULL, NULL);
 	EXTI_ClearITPendingBit(EXTI_Line1);
 }
 
