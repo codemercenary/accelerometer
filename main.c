@@ -26,7 +26,7 @@ static enum {
 	Compass,
 	Gyro,
 	LastState
-} state = Accelerometer;
+} state = Gyro;
 
 int main(void)
 {
@@ -52,9 +52,6 @@ int main(void)
     init_LED();
     init_blue_push_button();
     init_UART4();
-    
-    // Delay to give the accelerometer enough time to power on
-    delay_ms(250);
     init_accel();
     
     my_printf("Begin ... \r\n");
@@ -201,6 +198,20 @@ void EXTI0_IRQHandler(void) {
 			// Advance state
 			state = (state + 1) % LastState;
 			
+			switch(state) {
+			case Accelerometer:
+				my_printf("Displaying accelerometer\r\n");
+				break;
+			case Compass:
+				my_printf("Displaying compass\r\n");
+				break;
+			case Gyro:
+				my_printf("Displaying gyro\r\n");
+				break;
+			default:
+				break;
+			}
+			
 			// Zeroize all of our PWMs, just in case the corresponding
 			// interrupts aren't asserted in time
 			TIM_SetCompare1(TIM4, 0);
@@ -251,14 +262,17 @@ static void onAccel(const lsm_ddv* ddv) {
 }
 
 static void onGyro(const lsm_deuler* dEuler) {
-	if(state != Gyro) {
-		return;
-	}
+	PRINT_G(
+		"dv = (%d, %d, %d)\r\n",
+		(int)dEuler->dx,
+		(int)dEuler->dy,
+		(int)dEuler->dz
+	);
 	
 	static int32_t smoothX;
 	static int32_t smoothY;
 	
-	if(state != Accelerometer) {
+	if(state != Gyro) {
 		smoothX = 0;
 		smoothY = 0;
 		return;
