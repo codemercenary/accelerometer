@@ -304,9 +304,7 @@ static void reverse_three(void* pThree) {
 	pWord[2] = __REV16(pWord[2]);
 }
 
-void lsm_handle_interrupt_INTG(void* arg1, void* arg2) {
-	my_printf("Interrupt INTG\r\n");
-}
+void lsm_handle_interrupt_INTG(void) {}
 
 void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
 	// Interrupt indicates accelerometer data ready, process it, data payloads
@@ -327,9 +325,7 @@ void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
 		task_add(lsm_handle_interrupt_DRDYG, NULL, NULL);
 }
 
-void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
-	my_printf("Interrupt INT1\r\n");
-}
+void lsm_handle_interrupt_INT1_XM(void) {}
 
 void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 	// Read FIFO status, decide how much to pull in
