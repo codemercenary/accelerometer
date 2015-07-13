@@ -52,7 +52,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	}
 
 	// Perform i2c initialization:
-	TM_I2C_Init(g_config.i2c, TM_I2C_PinsPack_1, 100000);
+	TM_I2C_Init(g_config.i2c, TM_I2C_PinsPack_1, 400000);
 
 	// Delay to give the accelerometer enough time to power on
 	delay_ms(250);
