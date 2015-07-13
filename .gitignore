@@ -1,4 +1,4 @@
+imu.dump
 *.bin
-*.dump
 *.elf
 *.hex
