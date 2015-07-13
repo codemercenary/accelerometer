@@ -7,6 +7,8 @@
 #include "task.h"
 #include <stdlib.h>
 
+extern void delay_ms(uint32_t t);
+
 static LSM9DS0_CONFIG g_config;
 
 // Dispatch table for interrupt lines:
@@ -134,14 +136,18 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		CTRL_REG0_XM_VALUE rebootAM = {};
 		rebootAM.boot = 1;
 		i2c_write_am(CTRL_REG0_XM, &rebootAM);
-		rebootAM.boot = 0;
-		i2c_write_am(CTRL_REG0_XM, &rebootAM);
-		
 		CTRL_REG5_G_VALUE rebootG = {};
 		rebootG.boot = 1;
 		i2c_write_g(CTRL_REG5_G, &rebootG);
+
+		// Delay to give the accelerometer enough time to reset
+		delay_ms(250);
+		
+		rebootAM.boot = 0;
+		i2c_write_am(CTRL_REG0_XM, &rebootAM);
 		rebootG.boot = 0;
 		i2c_write_g(CTRL_REG5_G, &rebootG);
+		delay_ms(250);
 	}
 	
 	// Interrupt generation for accelerometer/magnetometer:
@@ -165,7 +171,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		reg3.p1_tap = 0;
 		reg3.p1_boot = 0;
 		i2c_write_am(CTRL_REG3_XM, &reg3);
-		my_printf("ctrl_reg3_xm =\t%d\r\n", *(uint8_t*)&reg3);
+		my_printf("ctrl_reg3_xm =\t%x\r\n", *(uint8_t*)&reg3);
 		
 		CTRL_REG4_XM_VALUE reg4 = {};
 		reg4.p2_wtm = 1;
@@ -189,34 +195,12 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		iCtrl.ymien = 0;
 		iCtrl.xmien = 0;
 		i2c_write_am(INT_CTRL_REG_M, &iCtrl);
-		my_printf("ctrl_reg_m =\t%d\r\n", *(uint8_t*)&iCtrl);
+		my_printf("ctrl_reg_m =\t%x\r\n", *(uint8_t*)&iCtrl);
 		
 		FIFO_CTRL_REG_VALUE fifoCtrl = {};
+		fifoCtrl.fm = eFIFOModeStream;
 		fifoCtrl.fth = 5;
-		fifoCtrl.fm = eFIFOModeFIFO;
 		i2c_write_am(FIFO_CTRL_REG, &fifoCtrl);
-		
-		/*INT_GEN_1_REG_VALUE intGen1;
-		intGen1.aoi = 0;
-		intGen1._6d = 0;
-		intGen1.xhie = 1;
-		intGen1.xlie = 1;
-		intGen1.yhie = 1;
-		intGen1.ylie = 1;
-		intGen1.zhie = 1;
-		intGen1.zlie = 1;
-		i2c_write_am(INT_GEN_1_REG, &intGen1);*/
-		
-		/*INT_GEN_2_REG_VALUE intGen2;
-		intGen2.aoi = 0;
-		intGen2._6d = 0;
-		intGen2.xhie = 1;
-		intGen2.xlie = 1;
-		intGen2.yhie = 1;
-		intGen2.ylie = 1;
-		intGen2.zhie = 1;
-		intGen2.zlie = 1;
-		i2c_write_am(INT_GEN_2_REG, &intGen2);*/
 	}
 	
 	// Configure accelerometer:
@@ -261,6 +245,12 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	
 	// Configure gyro:
 	{
+		FIFO_CTRL_REG_G_VALUE fifo_ctl = {};
+		fifo_ctl.fm = eFIFOModeStream;
+		fifo_ctl.wtm = 5;
+		i2c_write_g(FIFO_CTRL_REG_G, &fifo_ctl);
+		my_printf("fifo_ctl_g =\t%x\r\n", *(uint8_t*)&fifo_ctl);
+		
 		CTRL_REG1_G_VALUE reg1;
 		reg1.dr_bw = g_config.dr_bw;
 		reg1.pd = 1;
@@ -269,10 +259,25 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		reg1.z_en = 1;
 		i2c_write_g(CTRL_REG1_G, &reg1);
 		
-		CTRL_REG2_G_VALUE reg2 = {};
+		CTRL_REG2_G_VALUE reg2 = {0};
 		reg2.hpm = g_config.hpm;
 		reg2.hpcf = g_config.hpcf;
 		i2c_write_g(CTRL_REG2_G, &reg2);
+		
+		CTRL_REG3_G_VALUE reg3 = {};
+		reg3.i1_int1 = 0;
+		reg3.i1_boot = 0;
+		reg3.h_lactive = 1;
+		reg3.pp_od = 0;
+		reg3.i2_drdy = 1;
+		reg3.i2_wtm = 1;
+		reg3.i2_orun  = 0;
+		reg3.i2_empty = 0;
+		i2c_write_g(CTRL_REG3_G, &reg3);
+		
+		CTRL_REG5_G_VALUE reg5 = {};
+		reg5.fifo_en = 1;
+		i2c_write_g(CTRL_REG5_G, &reg5);
 	}
 	
 	return 0;
@@ -298,23 +303,34 @@ lsm_v lsm_read_compass(void) {
 	return v;
 }
 
-void lsm_handle_interrupt_INTG(void* arg1, void* arg2) {
-	my_printf("Interrupt INTG\r\n");
-}
-
-void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
-	my_printf("Interrupt DRDYG\r\n");
-}
-
-void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
-	my_printf("Interrupt INT1\r\n");
-}
-
 static void reverse_three(void* pThree) {
 	uint16_t* pWord = (uint16_t*)pThree;
 	pWord[0] = __REV16(pWord[0]);
 	pWord[1] = __REV16(pWord[1]);
 	pWord[2] = __REV16(pWord[2]);
+}
+
+void lsm_handle_interrupt_INTG(void* arg1, void* arg2) {
+	my_printf("Interrupt INTG\r\n");
+}
+
+void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
+	// Interrupt indicates accelerometer data ready, process it, data payloads
+	// follow immediately (and conveniently) right after the status register
+	for(
+		struct {
+			STATUS_REG_G_VALUE valG;
+			lsm_deuler dv;
+		} c;
+		i2c_read_g_multi(STATUS_REG_G, &c, sizeof(c)), c.valG.zyxda;
+	) {
+		reverse_three(&c.dv);
+		g_config.pfnG(&c.dv);
+	}
+}
+
+void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2) {
+	my_printf("Interrupt INT1\r\n");
 }
 
 void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
@@ -350,7 +366,8 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 void EXTI1_IRQHandler(void)
 {
 	if (EXTI_GetITStatus(EXTI_Line1) != RESET)
-		task_add(pfnDispatch[0], NULL, NULL);
+		if(!task_add(pfnDispatch[0], NULL, NULL))
+			my_printf("Overrun\r\n");
 	EXTI_ClearITPendingBit(EXTI_Line1);
 }
 

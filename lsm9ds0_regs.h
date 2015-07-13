@@ -232,8 +232,8 @@ typedef enum _eI2CAddr_G {
 } eI2CAddr_G;
 
 typedef struct _CTRL_REG1_G_VALUE {
-	unsigned char x_en : 1;
 	unsigned char y_en : 1;
+	unsigned char x_en : 1;
 	unsigned char z_en : 1;
 	unsigned char pd : 1;
 	unsigned char dr_bw : 4;
@@ -244,6 +244,26 @@ typedef struct _CTRL_REG2_G_VALUE {
 	unsigned char hpm : 2;
 	unsigned char : 2;
 } CTRL_REG2_G_VALUE;
+
+typedef struct _CTRL_REG3_G_VALUE {
+	unsigned char i2_empty : 1;
+	unsigned char i2_orun : 1;
+	unsigned char i2_wtm : 1;
+	unsigned char i2_drdy : 1;
+	unsigned char pp_od : 1;
+	unsigned char h_lactive : 1;
+	unsigned char i1_boot : 1;
+	unsigned char i1_int1 : 1;
+} CTRL_REG3_G_VALUE;
+
+typedef struct _CTRL_REG4_G_VALUE {
+	unsigned char sim : 1;
+	unsigned char st : 2;
+	unsigned char : 1;
+	unsigned char fs : 1;
+	unsigned char ble : 1;
+	unsigned char bdu : 1;
+} CTRL_REG4_G_VALUE;
 
 typedef struct _CTRL_REG5_G_VALUE {
 	unsigned char out_sel : 2;
@@ -264,5 +284,10 @@ typedef struct _STATUS_REG_G_VALUE {
 	unsigned char yda : 1;
 	unsigned char xda : 1;
 } STATUS_REG_G_VALUE;
+
+typedef struct _FIFO_CTRL_REG_G_VALUE {
+	unsigned char wtm : 5;
+	unsigned char fm : 3;
+} FIFO_CTRL_REG_G_VALUE;
 
 #endif
