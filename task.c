@@ -1,6 +1,7 @@
 #include "stm32f4xx_conf.h"
 #include "stm32f4xx.h"
 #include "task.h"
+#include "my_printf.h"
 #include <stdlib.h>
 
 typedef struct _task_entry {
@@ -33,6 +34,8 @@ uint8_t task_add(void (*pfn)(void*, void*), void* pContext1, void* pContext2) {
 		__SEV();
 		return 1;
 	}
+	
+	my_printf("Task overrun!\r\n");
 	return 0;
 }
 
