@@ -43,8 +43,9 @@ void task_run(void) {
 			return;
 		
 		// Clear the task, we have executed it
-		tasks[i].pfn(tasks[i].pContext1, tasks[i].pContext2);
+		void (*pfn)(void*, void*) = tasks[i].pfn;
 		tasks[i].pfn = NULL;
+		pfn(tasks[i].pContext1, tasks[i].pContext2);
 	}
 }
 
