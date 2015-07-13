@@ -358,7 +358,7 @@ void init_accel(void) {
 	config.GPIO_en = GPIOD;
 	config.CS_G = GPIO_Pin_4;
 	config.CS_XM = GPIO_Pin_6;
-	config.SDOG = GPIO_Pin_5;
+	config.SDOG = GPIO_Pin_7;
 	config.SDOXM = GPIO_Pin_3;
 	config.DEN_G = GPIO_Pin_2;
 	
