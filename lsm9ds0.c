@@ -41,7 +41,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	// can use i2c everywhere
 	{
 		GPIO_InitTypeDef gpio;
-		gpio.GPIO_Pin = g_config.CS_G | g_config.CS_XM | g_config.SDOG | g_config.SDOXM;
+		gpio.GPIO_Pin = g_config.CS_G | g_config.CS_XM | g_config.SDOG | g_config.SDOXM | g_config.DEN_G;
 		gpio.GPIO_Mode = GPIO_Mode_OUT;
 		gpio.GPIO_OType = GPIO_OType_PP;
 		gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
