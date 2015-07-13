@@ -11,27 +11,35 @@ extern void delay_ms(uint32_t t);
 
 static LSM9DS0_CONFIG g_config;
 
-// Dispatch table for interrupt lines:
-static void (*pfnDispatch[4])(void*, void*) = {};
+// Dispatch table entries for interrupt lines:
+typedef struct _LSM9DS0_DISPTAB_ENTRY {
+	// Dispatch function itself
+	void (*pfnDispatch)(void);
+	
+	// True if a rising edge has been detected or if the line is presently asserted.
+	uint32_t asserted;
+} LSM9DS0_DISPTAB_ENTRY;
+
+static LSM9DS0_DISPTAB_ENTRY s_disptab[4] = {};
 
 // Seven-bit slave addresses, shifted left one bit already
 static uint32_t i2c_addr_am = 0x3A;
 static uint32_t i2c_addr_g = 0xD6;
 
 static uint8_t i2c_read_am_b(eI2CAddr_AM reg) { return TM_I2C_Read(g_config.i2c, i2c_addr_am, reg); }
-static void i2c_read_am(eI2CAddr_AM reg, void* value) { *(uint8_t*)value = i2c_read_am_b(reg); }
 static void i2c_read_am_multi(eI2CAddr_G reg, void* data, uint16_t count) { TM_I2C_ReadMulti(g_config.i2c, i2c_addr_am, 0x80 | reg, data, count); }
 static void i2c_write_am(eI2CAddr_AM reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_am, reg, *(uint8_t*)value); }
 
 static uint8_t i2c_read_g_b(eI2CAddr_G reg) { return TM_I2C_Read(g_config.i2c, i2c_addr_g, reg); }
-static void i2c_read_g(eI2CAddr_G reg, void* value) { *(uint8_t*)value = i2c_read_g_b(reg); }
 static void i2c_read_g_multi(eI2CAddr_G reg, void* data, uint16_t count) { TM_I2C_ReadMulti(g_config.i2c, i2c_addr_g, 0x80 | reg, data, count); }
 static void i2c_write_g(eI2CAddr_G reg, const void* value) { TM_I2C_Write(g_config.i2c, i2c_addr_g, reg, *(uint8_t*)value); }
 
-static void lsm_handle_interrupt_INTG(void* arg1, void* arg2);
-static void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2);
-static void lsm_handle_interrupt_INT1_XM(void* arg1, void* arg2);
-static void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2);
+static void LSM9DS0_ISR(void* param1, void* param2);
+static void lsm_handle_interrupt_INTG(void);
+static void lsm_handle_interrupt_DRDYG(void);
+static void lsm_handle_interrupt_INT1_XM(void);
+static void lsm_handle_interrupt_INT2_XM(void);
+static int lsm_configure_int(void);
 
 uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	// Copy over configuration block:
@@ -64,63 +72,8 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		my_printf("i2c gyro not responding\r\n");
 	
 	// Interrupt handlers on our side
-	{
-		// Build up the dispatch table:
-		int intPins[] = {g_config.INTG, g_config.DRDYG, g_config.INT1_XM, g_config.INT2_XM};
-		void (*dispatchTab[])(void*, void*) = {
-			lsm_handle_interrupt_INTG,
-			lsm_handle_interrupt_DRDYG,
-			lsm_handle_interrupt_INT1_XM,
-			lsm_handle_interrupt_INT2_XM
-		};
-		for(int i = 0; i < 4; i++) {
-			// We don't support interrupt pins other than 1-4
-			if(!(GPIO_Pin_1 <= intPins[i] && intPins[i] <= GPIO_Pin_4)) {
-				my_printf("An interrupt GPIO was requested that is out of bounds\r\n");
-				return 1;
-			}
-			
-			// We just enabled interrupt irqn, and the dispatcher is intDispatch[i]
-			int irqn = (31 - __CLZ(intPins[i])) - 1;
-			pfnDispatch[irqn] = dispatchTab[i];
-		}
-		
-		// Enable all four NVIC and EXTI handlers.  Do not collapse this loop with the prior one,
-		// the dispatch table has to be configured first before any interrupt can be correctly
-		// handled.
-		for(int i = 0; i < 4; i++) {
-			EXTI_InitTypeDef exti;
-			exti.EXTI_Line = EXTI_Line1 << i;
-			exti.EXTI_LineCmd = ENABLE;
-			exti.EXTI_Mode = EXTI_Mode_Interrupt;
-			exti.EXTI_Trigger = EXTI_Trigger_Rising;
-			EXTI_Init(&exti);
-			
-			NVIC_InitTypeDef nvic;
-			nvic.NVIC_IRQChannel = EXTI1_IRQn + i;
-			nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
-			nvic.NVIC_IRQChannelSubPriority = 0x00;
-			nvic.NVIC_IRQChannelCmd = ENABLE;
-			NVIC_Init(&nvic);
-		}
-		
-		// We know for sure that the required GPIOs are pins 1~4
-		GPIO_InitTypeDef gpio;
-		gpio.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4;
-		gpio.GPIO_Mode = GPIO_Mode_IN;
-		gpio.GPIO_OType = GPIO_OType_PP;
-		gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
-		gpio.GPIO_Speed = GPIO_Speed_100MHz;
-		GPIO_Init(g_config.GPIO_int, &gpio);
-		my_printf("GPIOs configured\r\n");
-		
-		// Verify that we saturated all four dispatchers:
-		for(int i = 0; i < 4; i++)
-			if(!pfnDispatch[i]) {
-				my_printf("Dispatch entry %d was not specified\r\n", i);
-				return 2;
-			}
-	}
+	if(lsm_configure_int())
+		return 1;
 	
 	// Trigger perpipheral reset:
 	{
@@ -189,7 +142,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		my_printf("ctrl_reg_m =\t%x\r\n", *(uint8_t*)&iCtrl);
 		
 		FIFO_CTRL_REG_VALUE fifoCtrl = {};
-		fifoCtrl.fm = eFIFOModeStream;
+		fifoCtrl.fm = eFIFOModeBypass;
 		fifoCtrl.fth = 5;
 		i2c_write_am(FIFO_CTRL_REG, &fifoCtrl);
 	}
@@ -237,7 +190,7 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 	// Configure gyro:
 	{
 		FIFO_CTRL_REG_G_VALUE fifo_ctl = {};
-		fifo_ctl.fm = eFIFOModeStream;
+		fifo_ctl.fm = eFIFOModeBypass;
 		fifo_ctl.wtm = 5;
 		i2c_write_g(FIFO_CTRL_REG_G, &fifo_ctl);
 		my_printf("fifo_ctl_g =\t%x\r\n", *(uint8_t*)&fifo_ctl);
@@ -261,21 +214,81 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 		reg3.h_lactive = 0;
 		reg3.pp_od = 0;
 		reg3.i2_drdy = 1;
-		reg3.i2_wtm = 1;
+		reg3.i2_wtm = 0;
 		reg3.i2_orun  = 0;
 		reg3.i2_empty = 0;
 		i2c_write_g(CTRL_REG3_G, &reg3);
 		
-		CTRL_REG5_G_VALUE reg5 = {};
-		reg5.fifo_en = 1;
+		CTRL_REG5_G_VALUE reg5 = {0};
+		reg5.fifo_en = 0;
 		i2c_write_g(CTRL_REG5_G, &reg5);
 	}
 	
 	// Prime each interrupt initially, in case that they were asserted right when we started
-	task_add(lsm_handle_interrupt_INTG, NULL, NULL);
-	task_add(lsm_handle_interrupt_DRDYG, NULL, NULL);
-	task_add(lsm_handle_interrupt_INT1_XM, NULL, NULL);
-	task_add(lsm_handle_interrupt_INT2_XM, NULL, NULL);
+	s_disptab[0].asserted = 1;
+	s_disptab[1].asserted = 1;
+	s_disptab[2].asserted = 1;
+	s_disptab[3].asserted = 1;
+	LSM9DS0_ISR(NULL, NULL);
+	return 0;
+}
+
+static int lsm_configure_int(void) {
+	// Build up the dispatch table:
+	int intPins[] = {g_config.INTG, g_config.DRDYG, g_config.INT1_XM, g_config.INT2_XM};
+	void (*dispatchTab[])(void) = {
+		lsm_handle_interrupt_INTG,
+		lsm_handle_interrupt_DRDYG,
+		lsm_handle_interrupt_INT1_XM,
+		lsm_handle_interrupt_INT2_XM
+	};
+	for(int i = 0; i < 4; i++) {
+		// We don't support interrupt pins other than 1-4
+		if(!(GPIO_Pin_1 <= intPins[i] && intPins[i] <= GPIO_Pin_4)) {
+			my_printf("An interrupt GPIO was requested that is out of bounds\r\n");
+			return 1;
+		}
+		
+		// We just enabled interrupt irqn, and the dispatcher is intDispatch[i]
+		int irqn = (31 - __CLZ(intPins[i])) - 1;
+		s_disptab[irqn].pfnDispatch = dispatchTab[i];
+	}
+	
+	// Enable all four NVIC and EXTI handlers.  Do not collapse this loop with the prior one,
+	// the dispatch table has to be configured first before any interrupt can be correctly
+	// handled.
+	for(int i = 0; i < 4; i++) {
+		EXTI_InitTypeDef exti;
+		exti.EXTI_Line = EXTI_Line1 << i;
+		exti.EXTI_LineCmd = ENABLE;
+		exti.EXTI_Mode = EXTI_Mode_Interrupt;
+		exti.EXTI_Trigger = EXTI_Trigger_Rising;
+		EXTI_Init(&exti);
+		
+		NVIC_InitTypeDef nvic;
+		nvic.NVIC_IRQChannel = EXTI1_IRQn + i;
+		nvic.NVIC_IRQChannelPreemptionPriority = 0x00;
+		nvic.NVIC_IRQChannelSubPriority = 0x00;
+		nvic.NVIC_IRQChannelCmd = ENABLE;
+		NVIC_Init(&nvic);
+	}
+	
+	// We know for sure that the required GPIOs are pins 1~4
+	GPIO_InitTypeDef gpio;
+	gpio.GPIO_Pin = GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4;
+	gpio.GPIO_Mode = GPIO_Mode_IN;
+	gpio.GPIO_OType = GPIO_OType_PP;
+	gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	gpio.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_Init(g_config.GPIO_int, &gpio);
+	my_printf("GPIOs configured\r\n");
+	
+	// Verify that we saturated all four dispatchers:
+	for(int i = 0; i < 4; i++)
+		if(!s_disptab[i].pfnDispatch) {
+			my_printf("Dispatch entry %d was not specified\r\n", i);
+			return 2;
+		}
 	return 0;
 }
 
@@ -306,7 +319,7 @@ static void reverse_three(void* pThree) {
 
 void lsm_handle_interrupt_INTG(void) {}
 
-void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
+void lsm_handle_interrupt_DRDYG(void) {
 	// Interrupt indicates accelerometer data ready, process it, data payloads
 	// follow immediately (and conveniently) right after the status register
 	for(
@@ -319,15 +332,11 @@ void lsm_handle_interrupt_DRDYG(void* arg1, void* arg2) {
 		reverse_three(&c.dv);
 		g_config.pfnG(&c.dv);
 	}
-	
-	// Pend a task to ourselves to prevent starvation
-	if(GPIO_ReadInputDataBit(g_config.GPIO_int, g_config.DRDYG))
-		task_add(lsm_handle_interrupt_DRDYG, NULL, NULL);
 }
 
 void lsm_handle_interrupt_INT1_XM(void) {}
 
-void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
+void lsm_handle_interrupt_INT2_XM(void) {
 	// Read FIFO status, decide how much to pull in
 	
 	// Interrupt indicates accelerometer data ready, process it, data payloads
@@ -357,30 +366,59 @@ void lsm_handle_interrupt_INT2_XM(void* arg1, void* arg2) {
 	}
 }
 
+void LSM9DS0_ISR(void* param1, void* param2) {
+	uint32_t runAgain = 0;
+	for(int i = 0; i < 4; i++) {
+		LSM9DS0_DISPTAB_ENTRY* pEntry = &s_disptab[i];
+		uint32_t asserted = __LDREXW(&pEntry->asserted);
+		if(!asserted)
+			// Not asserted, circle around
+			continue;
+			
+		// Handoff to the corresponding dispatch routine:
+		pEntry->pfnDispatch();
+		
+		// Cleanup
+		if(GPIO_ReadInputDataBit(g_config.GPIO_int, GPIO_Pin_1))
+			// Still asserted, will need to run again
+			runAgain = 1;
+		else if(__STREXW(asserted, &pEntry->asserted))
+			// Not asserted, but couldn't clear state bit, it was reasserted.  We are going
+			// to need to circle around from the top in order to prevent starvation.
+			runAgain = 1;
+			
+	}
+	
+	if(runAgain)
+		task_add(LSM9DS0_ISR, NULL, NULL);
+}
+
+void LSM9DS0_Dispatch(int dispIndex, int exti_line) {
+	if (EXTI_GetITStatus(exti_line) != RESET)
+		// Only add a task if we are asserting the state
+		if(!s_disptab[dispIndex].asserted) {
+			task_add(LSM9DS0_ISR, NULL, NULL);
+			s_disptab[dispIndex].asserted = 1;
+		}
+	EXTI_ClearITPendingBit(exti_line);
+}
+
 void EXTI1_IRQHandler(void)
 {
-	if (EXTI_GetITStatus(EXTI_Line1) != RESET)
-		task_add(pfnDispatch[0], NULL, NULL);
-	EXTI_ClearITPendingBit(EXTI_Line1);
+	LSM9DS0_Dispatch(0, EXTI_Line1);
 }
 
 void EXTI2_IRQHandler(void)
 {
-	if (EXTI_GetITStatus(EXTI_Line2) != RESET)
-		task_add(pfnDispatch[1], NULL, NULL);
-	EXTI_ClearITPendingBit(EXTI_Line2);
+	LSM9DS0_Dispatch(1, EXTI_Line2);
 }
 
 void EXTI3_IRQHandler(void)
 {
-	if (EXTI_GetITStatus(EXTI_Line3) != RESET)
-		task_add(pfnDispatch[2], NULL, NULL);
-	EXTI_ClearITPendingBit(EXTI_Line3);
+	LSM9DS0_Dispatch(2, EXTI_Line3);
 }
 
 void EXTI4_IRQHandler(void)
 {
-	if (EXTI_GetITStatus(EXTI_Line4) != RESET)
-		task_add(pfnDispatch[3], NULL, NULL);
-	EXTI_ClearITPendingBit(EXTI_Line4);
+	LSM9DS0_Dispatch(3, EXTI_Line4);
 }
