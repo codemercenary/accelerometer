@@ -11,6 +11,8 @@ typedef enum _eI2CAddr_AM {
 	OUT_Z_L_M = 0x0C,
 	OUT_Z_H_M = 0x0D,
 	
+	WHO_AM_I_XM = 0xF,
+	
 	INT_CTRL_REG_M = 0x12,
 	INT_SRC_REG_M = 0x13,
 	INT_THS_L_M = 0x14,
@@ -209,6 +211,8 @@ typedef INT_GEN_1_THS_VALUE INT_GEN_2_THS_VALUE;
 typedef INT_GEN_1_DURATION_VALUE INT_GEN_2_DURATION_VALUE;
 
 typedef enum _eI2CAddr_G {
+	WHO_AM_I_G = 0xF,
+	
 	CTRL_REG1_G = 0x20,
 	CTRL_REG2_G = 0x21,
 	CTRL_REG3_G = 0x22,
