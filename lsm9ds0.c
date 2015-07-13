@@ -51,14 +51,23 @@ uint8_t lsm_init(const LSM9DS0_CONFIG* config) {
 
 	// Perform i2c initialization:
 	TM_I2C_Init(g_config.i2c, TM_I2C_PinsPack_1, 100000);
-	
-	if(!TM_I2C_IsDeviceConnected(g_config.i2c, i2c_addr_am)) {
-		my_printf("i2c accelerometer not responding\r\n");
-		return 1;
-	}
-	if(!TM_I2C_IsDeviceConnected(g_config.i2c, i2c_addr_g)) {
-		my_printf("i2c gyroscope not responding\r\n");
-		return 1;
+
+	// Delay to give the accelerometer enough time to power on
+	delay_ms(250);
+    
+	// WHOAMI validation:
+	{
+		uint8_t whoamiXM = i2c_read_am_b(WHO_AM_I_XM);
+		uint8_t whoamiG = i2c_read_g_b(WHO_AM_I_G);
+
+		if(whoamiXM != 0x49) {
+			my_printf("i2c accelerometer not responding\r\n");
+			return 1;
+		}
+		if(whoamiG != 0xD4) {
+			my_printf("i2c gyro not responding\r\n");
+			return 1;
+		}
 	}
 	
 	// Interrupt handlers on our side
