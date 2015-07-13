@@ -275,14 +275,14 @@ typedef struct _CTRL_REG5_G_VALUE {
 } CTRL_REG5_G_VALUE;
 
 typedef struct _STATUS_REG_G_VALUE {
-	unsigned char zyxor : 1;
-	unsigned char zor : 1;
-	unsigned char yor : 1;
-	unsigned char xor : 1;
-	unsigned char zyxda : 1;
-	unsigned char zda : 1;
-	unsigned char yda : 1;
 	unsigned char xda : 1;
+	unsigned char yda : 1;
+	unsigned char zda : 1;
+	unsigned char zyxda : 1;
+	unsigned char xor : 1;
+	unsigned char yor : 1;
+	unsigned char zor : 1;
+	unsigned char zyxor : 1;
 } STATUS_REG_G_VALUE;
 
 typedef struct _FIFO_CTRL_REG_G_VALUE {
